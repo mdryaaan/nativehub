@@ -237,3 +237,422 @@ input:focus-visible,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   4. Dark theme
+   ========================================================================== */
+
+[data-theme='dark'] {
+  --ifm-color-primary: #3ad6c0;
+  --ifm-color-primary-dark: #2accb5;
+  --ifm-color-primary-darker: #29c4ae;
+  --ifm-color-primary-darkest: #23aa97;
+  --ifm-color-primary-light: #4fdac7;
+  --ifm-color-primary-lighter: #58dcc9;
+  --ifm-color-primary-lightest: #71e1d2;
+
+  --nh-surface: #0b1018;
+  --nh-surface-raised: #121a25;
+  --nh-surface-sunken: #0e141d;
+  --nh-surface-inset: #182231;
+  --nh-border: #223044;
+  --nh-border-strong: #2e405a;
+  --nh-text: #e4eaf2;
+  --nh-text-muted: #a6b4c8;
+  --nh-text-subtle: #8494ab;
+
+  --ifm-background-color: var(--nh-surface);
+  --ifm-background-surface-color: var(--nh-surface-raised);
+  --ifm-font-color-base: var(--nh-text);
+  --ifm-heading-color: #f2f6fb;
+  /* Body copy in dark mode needs a lighter link tone than the light theme's
+     darkened primary, otherwise contrast drops below 4.5:1 on the dark ground. */
+  --ifm-link-color: var(--ifm-color-primary-light);
+  --ifm-link-hover-color: var(--ifm-color-primary-lightest);
+  --ifm-toc-border-color: var(--nh-border);
+  --ifm-hr-border-color: var(--nh-border);
+  --ifm-blockquote-color: var(--nh-text-muted);
+  --ifm-blockquote-border-color: var(--nh-brand-700);
+
+  --ifm-code-background: rgb(255 255 255 / 0.07);
+  --ifm-pre-background: #0f1620;
+
+  --ifm-navbar-background-color: rgb(11 16 24 / 0.78);
+
+  --ifm-menu-color: var(--nh-text-muted);
+  --ifm-menu-color-active: var(--ifm-color-primary-light);
+  --ifm-menu-color-background-active: rgb(58 214 192 / 0.1);
+  --ifm-menu-color-background-hover: rgb(255 255 255 / 0.05);
+
+  --ifm-table-border-color: var(--nh-border);
+  --ifm-table-head-background: var(--nh-surface-inset);
+  --ifm-table-stripe-background: rgb(255 255 255 / 0.02);
+
+  --nh-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --nh-shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 30px -14px rgb(0 0 0 / 0.7);
+  --nh-shadow-lg: 0 1px 2px rgb(0 0 0 / 0.4), 0 22px 50px -18px rgb(0 0 0 / 0.8);
+  --nh-ring: 0 0 0 3px rgb(58 214 192 / 0.3);
+
+  --docusaurus-highlighted-code-line-bg: rgb(58 214 192 / 0.14);
+}
+
+/* ==========================================================================
+   5. Navbar
+   ========================================================================== */
+
+.navbar {
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--nh-border);
+  transition: border-color var(--ifm-transition-fast) var(--nh-ease);
+}
+
+.navbar__title {
+  font-family: var(--nh-font-display);
+  font-weight: 800;
+  font-size: 1.0625rem;
+  letter-spacing: -0.03em;
+}
+
+.navbar__link {
+  font-size: var(--nh-text-sm);
+  font-weight: 500;
+  color: var(--nh-text-muted);
+  position: relative;
+  transition: color var(--ifm-transition-fast) var(--nh-ease);
+}
+
+.navbar__link:hover,
+.navbar__link--active {
+  color: var(--nh-text);
+}
+
+/* Underline grows from the centre on hover / active. */
+.navbar__item .navbar__link::after {
+  content: '';
+  position: absolute;
+  left: var(--ifm-navbar-item-padding-horizontal);
+  right: var(--ifm-navbar-item-padding-horizontal);
+  bottom: 0.15rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ifm-color-primary);
+  transform: scaleX(0);
+  transition: transform var(--nh-duration) var(--nh-ease);
+}
+
+.navbar__item .navbar__link:hover::after,
+.navbar__item .navbar__link--active::after {
+  transform: scaleX(1);
+}
+
+.navbar__logo {
+  transition: transform var(--nh-duration) var(--nh-ease);
+}
+
+.navbar__brand:hover .navbar__logo {
+  transform: rotate(-8deg) scale(1.06);
+}
+
+/* GitHub mark rendered from CSS so no extra image request is needed. */
+.navbar--github-link {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  margin-inline: 0.35rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--ifm-transition-fast) var(--nh-ease);
+}
+
+.navbar--github-link:hover {
+  background: var(--nh-surface-inset);
+}
+
+.navbar--github-link::before {
+  content: '';
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: var(--nh-text-muted);
+  transition: background-color var(--ifm-transition-fast) var(--nh-ease);
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z'/%3E%3C/svg%3E");
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+.navbar--github-link:hover::before {
+  background-color: var(--nh-text);
+}
+
+/* Mobile menu — the sidebar overlay sat under the navbar on small screens. */
+.navbar-sidebar {
+  background: var(--nh-surface);
+}
+
+.navbar-sidebar__brand {
+  box-shadow: none;
+  border-bottom: 1px solid var(--nh-border);
+  height: var(--ifm-navbar-height);
+}
+
+.navbar-sidebar__items {
+  padding-top: 0.5rem;
+}
+
+@media (max-width: 996px) {
+  .navbar__inner {
+    flex-wrap: nowrap;
+  }
+
+  .navbar__items--right {
+    flex-shrink: 0;
+  }
+}
+
+/* ==========================================================================
+   6. Sidebar, TOC, breadcrumbs, pagination
+   ========================================================================== */
+
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--nh-border) !important;
+}
+
+.menu {
+  padding: 1rem 0.75rem !important;
+  font-size: var(--nh-text-sm);
+}
+
+.menu__link {
+  border-radius: var(--nh-radius-sm);
+  font-weight: 500;
+  transition:
+    background-color var(--ifm-transition-fast) var(--nh-ease),
+    color var(--ifm-transition-fast) var(--nh-ease);
+}
+
+.menu__link--active:not(.menu__link--sublist) {
+  font-weight: 600;
+}
+
+.menu__list-item-collapsible {
+  border-radius: var(--nh-radius-sm);
+}
+
+.theme-doc-sidebar-item-category > .menu__list-item-collapsible > .menu__link {
+  font-family: var(--nh-font-display);
+  font-weight: 700;
+  font-size: var(--nh-text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nh-text-subtle);
+}
+
+.table-of-contents {
+  font-size: var(--nh-text-sm);
+  border-left-color: var(--nh-border);
+}
+
+.table-of-contents__link {
+  transition: color var(--ifm-transition-fast) var(--nh-ease);
+}
+
+.table-of-contents__link--active {
+  font-weight: 600;
+}
+
+.breadcrumbs__item--active .breadcrumbs__link {
+  background: var(--nh-surface-inset);
+  color: var(--nh-text);
+}
+
+.pagination-nav__link {
+  border-radius: var(--nh-radius-lg);
+  border-color: var(--nh-border);
+  background: var(--nh-surface-raised);
+  transition:
+    border-color var(--nh-duration) var(--nh-ease),
+    transform var(--nh-duration) var(--nh-ease),
+    box-shadow var(--nh-duration) var(--nh-ease);
+}
+
+.pagination-nav__link:hover {
+  border-color: var(--ifm-color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--nh-shadow);
+}
+
+.pagination-nav__sublabel {
+  color: var(--nh-text-subtle);
+  font-size: var(--nh-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   7. Content: code, tables, admonitions, cards
+   ========================================================================== */
+
+.theme-code-block {
+  border-radius: var(--nh-radius-lg) !important;
+  border: 1px solid var(--nh-border);
+  box-shadow: var(--nh-shadow-sm) !important;
+  overflow: hidden;
+}
+
+.theme-code-block pre {
+  font-size: var(--nh-text-sm);
+  line-height: 1.65;
+}
+
+div[class^='codeBlockTitle'] {
+  font-family: var(--nh-font-mono);
+  font-size: var(--nh-text-xs);
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--nh-border) !important;
+  background: var(--nh-surface-sunken);
+  color: var(--nh-text-muted);
+}
+
+code {
+  border: 1px solid var(--nh-border);
+  font-weight: 500;
+}
+
+a code {
+  color: inherit;
+}
+
+.markdown table {
+  display: table;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius-lg);
+  overflow: hidden;
+  font-size: var(--nh-text-sm);
+}
+
+.markdown table thead tr {
+  border-bottom: 1px solid var(--nh-border);
+}
+
+.markdown table th,
+.markdown table td {
+  border: 0;
+  border-bottom: 1px solid var(--nh-border);
+  padding: 0.7rem 0.9rem;
+  vertical-align: top;
+}
+
+.markdown table tr:last-child td {
+  border-bottom: 0;
+}
+
+.markdown table th {
+  font-family: var(--nh-font-display);
+  font-size: var(--nh-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nh-text-subtle);
+  text-align: left;
+}
+
+/* Wide reference tables must scroll inside their own box, never the page. */
+.markdown > table,
+.markdown .tableWrapper {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.theme-admonition {
+  border-radius: var(--nh-radius-lg);
+  border-width: 1px;
+  border-left-width: 4px;
+  box-shadow: none;
+}
+
+.card {
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-raised);
+}
+
+blockquote {
+  border-left-width: 3px;
+  border-radius: 0 var(--nh-radius) var(--nh-radius) 0;
+  background: var(--nh-surface-sunken);
+  padding: 0.85rem 1.1rem;
+}
+
+/* ==========================================================================
+   8. Buttons
+   ========================================================================== */
+
+.button {
+  font-family: var(--nh-font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  transition:
+    transform var(--nh-duration) var(--nh-ease),
+    box-shadow var(--nh-duration) var(--nh-ease),
+    background-color var(--nh-duration) var(--nh-ease),
+    border-color var(--nh-duration) var(--nh-ease);
+}
+
+.button:hover {
+  transform: translateY(-2px);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   9. Blog
+   ========================================================================== */
+
+.blog-wrapper .markdown h1,
+article header h2 a {
+  font-family: var(--nh-font-display);
+  letter-spacing: -0.028em;
+}
+
+article header h2 a {
+  transition: color var(--ifm-transition-fast) var(--nh-ease);
+}
+
+/* ==========================================================================
+   10. Footer
+   ========================================================================== */
+
+.footer--dark {
+  --ifm-footer-background-color: var(--nh-ink-950);
+  --ifm-footer-color: var(--nh-ink-300);
+  --ifm-footer-link-color: var(--nh-ink-300);
+  --ifm-footer-link-hover-color: var(--nh-brand-300);
+  --ifm-footer-title-color: #ffffff;
+  border-top: 1px solid var(--nh-border);
+}
+
+.footer__title {
+  font-family: var(--nh-font-display);
+  font-size: var(--nh-text-xs);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.footer__link-item {
+  font-size: var(--nh-text-sm);
+  transition: color var(--ifm-transition-fast) var(--nh-ease);
+}
+
+.footer__copyright {
+  font-size: var(--nh-text-xs);
+  color: var(--nh-ink-400);
+}
