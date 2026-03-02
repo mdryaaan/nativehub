@@ -1,38 +1,41 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import { themes as prismThemes } from 'prism-react-renderer';
 
-// This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
+const organizationName = 'mdryaan';
+const projectName = 'nativehub';
+const editUrlBase = `https://github.com/${organizationName}/${projectName}/tree/main/`;
 
 const config: Config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
-  favicon: 'img/favicon.ico',
+  title: 'NativeHub',
+  tagline: 'Practical guides and resources for cloud native development',
+  favicon: 'img/favicon.svg',
 
-  // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
-    v4: true, // Improve compatibility with the upcoming Docusaurus v4
+    v4: true,
+    experimental_faster: true,
   },
 
-  // Set the production url of your site here
-  url: 'https://your-docusaurus-site.example.com',
-  // Set the /<baseUrl>/ pathname under which your site is served
-  // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/',
+  url: `https://${organizationName}.github.io`,
+  baseUrl: `/${projectName}/`,
 
-  // GitHub pages deployment config.
-  // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName,
+  projectName,
+  trailingSlash: false,
+  deploymentBranch: 'gh-pages',
 
   onBrokenLinks: 'throw',
+  onBrokenAnchors: 'throw',
+  onBrokenMarkdownLinks: 'throw',
+  onDuplicateRoutes: 'throw',
 
-  // Even if you don't use internationalization, you can use this field to set
-  // useful metadata like html lang. For example, if your site is Chinese, you
-  // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
+  },
+
+  markdown: {
+    mermaid: false,
   },
 
   presets: [
@@ -41,57 +44,99 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+          editUrl: editUrlBase,
+          showLastUpdateTime: true,
+          showLastUpdateAuthor: false,
+          breadcrumbs: true,
         },
         blog: {
           showReadingTime: true,
+          blogTitle: 'The NativeHub Blog',
+          blogDescription:
+            'Deep dives on Kubernetes, containers, and the tooling that runs them.',
+          postsPerPage: 5,
+          blogSidebarTitle: 'Recent posts',
+          blogSidebarCount: 'ALL',
           feedOptions: {
             type: ['rss', 'atom'],
+            title: 'NativeHub Blog',
+            description: 'Practical cloud native engineering, straight from the terminal.',
+            copyright: `Copyright © ${new Date().getFullYear()} NativeHub.`,
             xslt: true,
           },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
+          editUrl: editUrlBase,
+          onInlineTags: 'throw',
+          onInlineAuthors: 'throw',
+          onUntruncatedBlogPosts: 'throw',
         },
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: ['./src/css/tailwind.css', './src/css/custom.css'],
+        },
+        sitemap: {
+          changefreq: 'weekly',
+          priority: 0.5,
         },
       } satisfies Preset.Options,
     ],
   ],
 
+  plugins: [
+    // Wire Tailwind into the Docusaurus PostCSS pipeline.
+    function tailwindPlugin() {
+      return {
+        name: 'nativehub-tailwind',
+        configurePostCss(postcssOptions) {
+          postcssOptions.plugins.push(
+            require('tailwindcss'),
+            require('autoprefixer'),
+          );
+          return postcssOptions;
+        },
+      };
+    },
+  ],
+
   themeConfig: {
-    // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    image: 'img/social-card.png',
+    metadata: [
+      {
+        name: 'keywords',
+        content: 'kubernetes, docker, containers, helm, cloud native, devops, cncf',
+      },
+      { name: 'author', content: 'Md Raiyan' },
+    ],
     colorMode: {
+      defaultMode: 'light',
+      disableSwitch: false,
       respectPrefersColorScheme: true,
     },
+    docs: {
+      sidebar: {
+        hideable: true,
+        autoCollapseCategories: false,
+      },
+    },
     navbar: {
-      title: 'My Site',
+      title: 'NativeHub',
+      hideOnScroll: false,
       logo: {
-        alt: 'My Site Logo',
+        alt: 'NativeHub logo',
         src: 'img/logo.svg',
+        width: 32,
+        height: 32,
       },
       items: [
+        { type: 'docSidebar', sidebarId: 'learnSidebar', position: 'left', label: 'Learn' },
+        { type: 'docSidebar', sidebarId: 'guidesSidebar', position: 'left', label: 'Guides' },
+        { to: '/tools', label: 'Tools', position: 'left' },
+        { to: '/resources', label: 'Resources', position: 'left' },
+        { to: '/blog', label: 'Blog', position: 'left' },
+        { to: '/about', label: 'About', position: 'left' },
         {
-          type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
-          position: 'left',
-          label: 'Tutorial',
-        },
-        {to: '/blog', label: 'Blog', position: 'left'},
-        {
-          href: 'https://github.com/facebook/docusaurus',
-          label: 'GitHub',
+          href: `https://github.com/${organizationName}/${projectName}`,
           position: 'right',
+          className: 'navbar--github-link',
+          'aria-label': 'NativeHub on GitHub',
         },
       ],
     },
@@ -99,50 +144,62 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Docs',
+          title: 'Learn',
           items: [
-            {
-              label: 'Tutorial',
-              to: '/docs/intro',
-            },
+            { label: 'Docker fundamentals', to: '/docs/learn/docker-fundamentals' },
+            { label: 'Kubernetes fundamentals', to: '/docs/learn/kubernetes-fundamentals' },
+            { label: 'Kubernetes networking', to: '/docs/learn/kubernetes-networking' },
+            { label: 'Helm basics', to: '/docs/learn/helm-basics' },
+          ],
+        },
+        {
+          title: 'Guides',
+          items: [
+            { label: 'Deploy your first app', to: '/docs/guides/deploy-first-app' },
+            { label: 'Build a Docker image', to: '/docs/guides/build-docker-image' },
+            { label: 'Write a Helm chart', to: '/docs/guides/write-first-helm-chart' },
+            { label: 'Debug pod failures', to: '/docs/guides/debugging-pod-failures' },
+          ],
+        },
+        {
+          title: 'Reference',
+          items: [
+            { label: 'Tools', to: '/tools' },
+            { label: 'Resources', to: '/resources' },
+            { label: 'Blog', to: '/blog' },
+            { label: 'About', to: '/about' },
           ],
         },
         {
           title: 'Community',
           items: [
+            { label: 'GitHub', href: `https://github.com/${organizationName}/${projectName}` },
             {
-              label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
+              label: 'Contributing',
+              href: `https://github.com/${organizationName}/${projectName}/blob/main/CONTRIBUTING.md`,
             },
-            {
-              label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
-            },
-            {
-              label: 'X',
-              href: 'https://x.com/docusaurus',
-            },
-          ],
-        },
-        {
-          title: 'More',
-          items: [
-            {
-              label: 'Blog',
-              to: '/blog',
-            },
-            {
-              label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
-            },
+            { label: 'RSS', href: '/nativehub/blog/rss.xml' },
+            { label: 'CNCF Landscape', href: 'https://landscape.cncf.io/' },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `© ${new Date().getFullYear()} NativeHub. Content licensed MIT. Built with Docusaurus.`,
     },
     prism: {
-      theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
+      theme: prismThemes.oneLight,
+      darkTheme: prismThemes.oneDark,
+      additionalLanguages: ['bash', 'yaml', 'docker', 'json', 'go', 'toml', 'ini', 'diff'],
+      magicComments: [
+        {
+          className: 'theme-code-block-highlighted-line',
+          line: 'highlight-next-line',
+          block: { start: 'highlight-start', end: 'highlight-end' },
+        },
+      ],
+    },
+    tableOfContents: {
+      minHeadingLevel: 2,
+      maxHeadingLevel: 4,
     },
   } satisfies Preset.ThemeConfig,
 };
