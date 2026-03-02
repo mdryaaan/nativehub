@@ -1,30 +1,239 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * NativeHub design system.
+ *
+ * Layer 1 — design tokens (this file, top section): colour ramps, type scale,
+ * radii, elevation and motion. Everything downstream reads from these.
+ * Layer 2 — Infima overrides: re-point Docusaurus' own variables at our tokens.
+ * Layer 3 — component chrome: navbar, sidebar, cards, code, footer.
  */
 
-/* You can override the default Infima variables here. */
+/* ==========================================================================
+   1. Design tokens
+   ========================================================================== */
+
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  /* Brand ramp — a deep teal, chosen to read as "cloud native" without being
+     the default Docusaurus indigo. */
+  --nh-brand-50: #eafaf7;
+  --nh-brand-100: #c9f2ea;
+  --nh-brand-200: #96e6da;
+  --nh-brand-300: #5bd4c4;
+  --nh-brand-400: #2bbcaa;
+  --nh-brand-500: #12a08f;
+  --nh-brand-600: #0e8f80;
+  --nh-brand-700: #0b665e;
+  --nh-brand-800: #0d514c;
+  --nh-brand-900: #0e4440;
+  --nh-brand-950: #032725;
+
+  /* Accent ramp — a warm amber used sparingly for emphasis and highlights. */
+  --nh-accent-300: #fcd34d;
+  --nh-accent-400: #fbbf24;
+  --nh-accent-500: #f59e0b;
+  --nh-accent-600: #d97706;
+
+  /* Neutral ramp. */
+  --nh-ink-50: #f6f7f9;
+  --nh-ink-100: #eceef2;
+  --nh-ink-200: #d5dae3;
+  --nh-ink-300: #b0b9ca;
+  --nh-ink-400: #8492ab;
+  --nh-ink-500: #657490;
+  --nh-ink-600: #505d77;
+  --nh-ink-700: #424c61;
+  --nh-ink-800: #394252;
+  --nh-ink-900: #141b26;
+  --nh-ink-950: #0b1018;
+
+  /* Semantic surfaces (light theme). */
+  --nh-surface: #ffffff;
+  --nh-surface-raised: #ffffff;
+  --nh-surface-sunken: var(--nh-ink-50);
+  --nh-surface-inset: #f1f4f8;
+  --nh-border: #e3e8ef;
+  --nh-border-strong: #cfd7e3;
+  --nh-text: var(--nh-ink-900);
+  --nh-text-muted: var(--nh-ink-600);
+  --nh-text-subtle: var(--nh-ink-500);
+
+  /* Typography. */
+  --nh-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  --nh-font-display: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, 'Segoe UI',
+    sans-serif;
+  --nh-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo,
+    Consolas, 'Liberation Mono', monospace;
+
+  /* Modular type scale, ratio ~1.22, fluid at the top end. */
+  --nh-text-xs: 0.75rem;
+  --nh-text-sm: 0.875rem;
+  --nh-text-base: 1rem;
+  --nh-text-lg: 1.125rem;
+  --nh-text-xl: 1.375rem;
+  --nh-text-2xl: 1.6875rem;
+  --nh-text-3xl: clamp(1.75rem, 1.4rem + 1.6vw, 2.125rem);
+  --nh-text-4xl: clamp(2.125rem, 1.5rem + 2.8vw, 2.75rem);
+  --nh-text-5xl: clamp(2.5rem, 1.4rem + 5vw, 4rem);
+
+  /* Shape and elevation. */
+  --nh-radius-sm: 6px;
+  --nh-radius: 10px;
+  --nh-radius-lg: 16px;
+  --nh-radius-xl: 22px;
+  --nh-shadow-sm: 0 1px 2px rgb(11 16 24 / 0.05);
+  --nh-shadow: 0 1px 2px rgb(11 16 24 / 0.04), 0 8px 24px -12px rgb(11 16 24 / 0.18);
+  --nh-shadow-lg: 0 1px 2px rgb(11 16 24 / 0.06), 0 18px 40px -16px rgb(11 16 24 / 0.28);
+  --nh-ring: 0 0 0 3px rgb(18 160 143 / 0.28);
+
+  /* Motion. */
+  --nh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nh-duration: 220ms;
+
+  /* Layout rhythm. */
+  --nh-page-max: 1200px;
+  --nh-section-gap: clamp(3.5rem, 8vw, 6.5rem);
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
-[data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+/* ==========================================================================
+   2. Infima variable overrides
+   ========================================================================== */
+
+:root {
+  --ifm-color-primary: #0e8f80;
+  --ifm-color-primary-dark: #0c786b;
+  --ifm-color-primary-darker: #0b6e63;
+  --ifm-color-primary-darkest: #08534a;
+  --ifm-color-primary-light: #10a695;
+  --ifm-color-primary-lighter: #11b09d;
+  --ifm-color-primary-lightest: #14cbb6;
+
+  --ifm-font-family-base: var(--nh-font-sans);
+  --ifm-heading-font-family: var(--nh-font-display);
+  --ifm-font-family-monospace: var(--nh-font-mono);
+
+  --ifm-font-size-base: 16px;
+  --ifm-line-height-base: 1.7;
+  --ifm-heading-font-weight: 700;
+  --ifm-heading-line-height: 1.22;
+  --ifm-h1-font-size: var(--nh-text-4xl);
+  --ifm-h2-font-size: var(--nh-text-3xl);
+  --ifm-h3-font-size: var(--nh-text-xl);
+  --ifm-h4-font-size: var(--nh-text-lg);
+  --ifm-h5-font-size: var(--nh-text-base);
+  --ifm-h6-font-size: var(--nh-text-sm);
+
+  --ifm-background-color: var(--nh-surface);
+  --ifm-background-surface-color: var(--nh-surface-raised);
+  --ifm-font-color-base: var(--nh-text);
+  --ifm-heading-color: var(--nh-ink-950);
+  --ifm-link-color: var(--ifm-color-primary-dark);
+  --ifm-link-hover-color: var(--ifm-color-primary-darkest);
+  --ifm-toc-border-color: var(--nh-border);
+  --ifm-hr-border-color: var(--nh-border);
+  --ifm-blockquote-color: var(--nh-text-muted);
+  --ifm-blockquote-border-color: var(--nh-brand-300);
+
+  --ifm-global-radius: var(--nh-radius);
+  --ifm-button-border-radius: var(--nh-radius);
+  --ifm-global-shadow-lw: var(--nh-shadow-sm);
+  --ifm-global-shadow-md: var(--nh-shadow);
+  --ifm-global-shadow-tl: var(--nh-shadow-lg);
+  --ifm-transition-fast: 160ms;
+  --ifm-transition-slow: var(--nh-duration);
+  --ifm-transition-timing-default: var(--nh-ease);
+
+  --ifm-code-font-size: 0.875em;
+  --ifm-code-border-radius: var(--nh-radius-sm);
+  --ifm-code-background: var(--nh-surface-inset);
+  --ifm-code-padding-horizontal: 0.36em;
+  --ifm-code-padding-vertical: 0.16em;
+  --ifm-pre-background: #fbfcfe;
+
+  --ifm-navbar-height: 4rem;
+  --ifm-navbar-background-color: rgb(255 255 255 / 0.82);
+  --ifm-navbar-shadow: none;
+  --ifm-navbar-item-padding-horizontal: 0.85rem;
+
+  --ifm-menu-color: var(--nh-text-muted);
+  --ifm-menu-color-active: var(--ifm-color-primary-darker);
+  --ifm-menu-color-background-active: var(--nh-brand-50);
+  --ifm-menu-color-background-hover: var(--nh-surface-inset);
+
+  --ifm-table-border-color: var(--nh-border);
+  --ifm-table-head-background: var(--nh-surface-sunken);
+  --ifm-table-stripe-background: rgb(11 16 24 / 0.018);
+
+  --docusaurus-highlighted-code-line-bg: rgb(18 160 143 / 0.12);
+  --docsearch-primary-color: var(--ifm-color-primary);
+}
+
+/* ==========================================================================
+   3. Base typography
+   ========================================================================== */
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--ifm-navbar-height) + 1rem);
+}
+
+body {
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
+  letter-spacing: -0.006em;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+
+h1 {
+  letter-spacing: -0.03em;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+.markdown > h2 {
+  margin-top: 2.75rem;
+  padding-top: 0.35rem;
+}
+
+.markdown > h3 {
+  margin-top: 2rem;
+}
+
+.markdown li + li {
+  margin-top: 0.3rem;
+}
+
+/* Anchors are the primary keyboard target on this site — never hide the ring. */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+  border-radius: var(--nh-radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
