@@ -1,0 +1,69 @@
+/* Plain CSS (not a module) so MDX pages can rely on stable class names. */
+.nh-callout {
+  --nh-callout-bg: var(--nh-callout-wash);
+  margin: 1.5rem 0;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--nh-border);
+  border-left: 4px solid var(--nh-callout-accent);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-callout-bg);
+}
+
+[data-theme='dark'] .nh-callout {
+  --nh-callout-bg: var(--nh-callout-wash-dark);
+}
+
+.nh-callout__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--nh-font-display);
+  font-size: var(--nh-text-xs);
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-callout-accent);
+}
+
+/* The light-theme accents are tuned for white; on the dark ground they need
+   lifting to stay above a 4.5:1 contrast ratio. */
+[data-theme='dark'] .nh-callout--info .nh-callout__head {
+  color: #93c5fd;
+}
+[data-theme='dark'] .nh-callout--tip .nh-callout__head {
+  color: #5eead4;
+}
+[data-theme='dark'] .nh-callout--warning .nh-callout__head {
+  color: #fcd34d;
+}
+[data-theme='dark'] .nh-callout--danger .nh-callout__head {
+  color: #fda4af;
+}
+
+[data-theme='dark'] .nh-callout--info {
+  border-left-color: #60a5fa;
+}
+[data-theme='dark'] .nh-callout--tip {
+  border-left-color: #2dd4bf;
+}
+[data-theme='dark'] .nh-callout--warning {
+  border-left-color: #fbbf24;
+}
+[data-theme='dark'] .nh-callout--danger {
+  border-left-color: #fb7185;
+}
+
+.nh-callout__body {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--nh-text);
+}
+
+.nh-callout__body > *:first-child {
+  margin-top: 0;
+}
+
+.nh-callout__body > *:last-child {
+  margin-bottom: 0;
+}
