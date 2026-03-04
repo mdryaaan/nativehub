@@ -1,0 +1,43 @@
+.nh-codetabs {
+  margin: 1.5rem 0;
+}
+
+.nh-codetabs .tabs {
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--nh-border);
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.85rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.nh-codetabs .tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.nh-codetabs .tabs__item {
+  border-radius: var(--nh-radius-sm);
+  border-bottom: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: var(--nh-text-sm);
+  font-weight: 600;
+  color: var(--nh-text-muted);
+  white-space: nowrap;
+  transition: all 160ms var(--nh-ease);
+}
+
+.nh-codetabs .tabs__item:hover {
+  background: var(--nh-surface-inset);
+  color: var(--nh-text);
+}
+
+.nh-codetabs .tabs__item--active {
+  background: var(--nh-surface-inset);
+  color: var(--ifm-color-primary);
+  border-bottom: 0;
+}
+
+.nh-codetabs .margin-top--md {
+  margin-top: 0 !important;
+}
