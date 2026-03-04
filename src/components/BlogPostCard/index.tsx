@@ -38,7 +38,7 @@ export default function BlogPostCard({
   return (
     <article
       className={clsx(
-        'group flex h-full flex-col rounded-2xl border border-[var(--nh-border)]',
+        'group relative flex h-full flex-col rounded-2xl border border-[var(--nh-border)]',
         'bg-[var(--nh-surface-raised)] p-6 shadow-[var(--nh-shadow-sm)]',
         'transition-[transform,box-shadow,border-color] duration-300 ease-smooth',
         'hover:-translate-y-1 hover:border-[var(--ifm-color-primary)] hover:shadow-[var(--nh-shadow-lg)]',
