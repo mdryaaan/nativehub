@@ -1,0 +1,247 @@
+---
+slug: pods-vs-deployments
+title: Understanding Pods vs Deployments in Kubernetes
+authors: [mdryaan]
+tags: [kubernetes, fundamentals]
+date: 2026-01-14
+description: A Pod is the smallest deployable unit. A Deployment manages ReplicaSets, which manage Pods. Understanding that three-level chain explains rollouts, rollbacks, and self-healing.
+keywords: [pod, deployment, replicaset, kubernetes, rollout]
+image: /img/social-card.png
+---
+
+Newcomers to Kubernetes almost always ask the same question in the same order: *what is a Pod, why
+would I not just create one, and what does a Deployment add?* The answer is a three-level chain of
+ownership, and once you can see it, most of Kubernetes' behaviour stops being surprising.
+
+{/* truncate */}
+
+## A Pod is the smallest deployable unit
+
+You cannot schedule a container. The smallest object Kubernetes will place on a node is a **Pod**:
+one or more containers that share a network namespace and can share volumes.
+
+Sharing the network namespace has a concrete consequence. Every container in a Pod sees the same
+`localhost` and the same IP address, and they cannot bind the same port — two containers both
+listening on `:8080` in one Pod is a port conflict, exactly as it would be on a single host.
+
+```yaml title="pod.yaml"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  containers:
+    - name: nginx
+      image: nginxinc/nginx-unprivileged:1.27-alpine
+      ports:
+        - containerPort: 8080
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          memory: 128Mi
+```
+
+```bash
+kubectl apply -f pod.yaml
+kubectl get pod web -o wide
+```
+
+This works. It is also a trap.
+
+## Why a bare Pod is not enough
+
+Delete it and see what happens:
+
+```bash
+kubectl delete pod web
+kubectl get pods
+# No resources found in default namespace.
+```
+
+Nothing brought it back, because nothing *owns* it. A Pod is a record of "this container should run
+on this node." When the Pod goes away — you deleted it, the node was drained, the node caught fire
+— that record is simply gone.
+
+A bare Pod gives you:
+
+- ❌ No rescheduling after a node failure
+- ❌ No way to run more than one copy without copy-pasting YAML
+- ❌ No rolling update — changing the image means deleting and recreating, with downtime
+- ❌ No rollback
+
+## The chain: Deployment → ReplicaSet → Pod
+
+The fix is a controller. The most common one is a **Deployment**, and the crucial detail is that a
+Deployment does not manage Pods directly:
+
+```
+Deployment  "I want 3 replicas of this Pod template"
+    │  owns
+    ▼
+ReplicaSet  "I own exactly 3 Pods matching this exact template"
+    │  owns
+    ▼
+Pod  Pod  Pod
+```
+
+Each level has one job:
+
+| Level | Responsibility |
+| --- | --- |
+| **Deployment** | Manages *versions*. Creates a new ReplicaSet per Pod template, and orchestrates the shift of replicas between them. |
+| **ReplicaSet** | Manages *count*. Keeps exactly N Pods matching one specific template alive. |
+| **Pod** | Runs the containers. |
+
+```yaml title="deployment.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: web              # immutable after creation
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1           # at most 4 Pods during a rollout
+      maxUnavailable: 0     # never fewer than 3 ready
+  template:
+    metadata:
+      labels:
+        app: web            # must satisfy spec.selector
+    spec:
+      containers:
+        - name: nginx
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 5
+```
+
+Now the ownership is visible in the cluster:
+
+```bash
+kubectl apply -f deployment.yaml
+kubectl get deploy,rs,pod -l app=web
+```
+
+```
+NAME                  READY   UP-TO-DATE   AVAILABLE
+deployment.apps/web   3/3     3            3
+
+NAME                             DESIRED   CURRENT   READY
+replicaset.apps/web-7d4b9c6f85   3         3         3
+
+NAME                       READY   STATUS    RESTARTS
+pod/web-7d4b9c6f85-2xk4l   1/1     Running   0
+pod/web-7d4b9c6f85-9mfqz   1/1     Running   0
+pod/web-7d4b9c6f85-hd7vw   1/1     Running   0
+```
+
+The Pod name is not random: `web-7d4b9c6f85-2xk4l` is `<deployment>-<template-hash>-<random>`. That
+middle segment is a hash of the Pod template, and the ReplicaSet carries the same one. It is also
+injected as a label, `pod-template-hash`, which is how each ReplicaSet claims only *its* Pods
+without the templates' selectors colliding.
+
+```bash
+# Ownership is recorded explicitly on the child object
+kubectl get pod -l app=web -o jsonpath='{.items[0].metadata.ownerReferences[0]}' | jq
+# { "apiVersion": "apps/v1", "kind": "ReplicaSet", "name": "web-7d4b9c6f85", ... }
+```
+
+## Self-healing, demonstrated
+
+```bash
+kubectl delete pod -l app=web --field-selector=status.phase=Running --wait=false
+kubectl get pods -l app=web
+```
+
+A replacement appears within seconds. Nothing special-cased "a Pod died". The ReplicaSet controller
+runs the same loop it always runs: *desired 3, observed 2, create 1.* The identical loop is what
+recovers from a node failure — the node controller marks the Pods on a dead node as terminating, the
+count drops, and replacements are scheduled elsewhere.
+
+## Why the extra ReplicaSet layer earns its keep
+
+Change the image:
+
+```bash
+kubectl set image deployment/web nginx=nginxinc/nginx-unprivileged:1.27.3-alpine
+kubectl rollout status deployment/web
+kubectl get rs -l app=web
+```
+
+```
+NAME             DESIRED   CURRENT   READY
+web-7d4b9c6f85   0         0         0      <- old template, scaled to zero
+web-5f8c2d9b47   3         3         3      <- new template
+```
+
+The Deployment created a **second** ReplicaSet for the new template and moved replicas across one at
+a time, respecting `maxSurge` and `maxUnavailable`, and waiting for each new Pod to pass its
+readiness probe before retiring an old one.
+
+The old ReplicaSet was kept at zero rather than deleted. That is the entire rollback mechanism:
+
+```bash
+kubectl rollout history deployment/web
+kubectl rollout undo deployment/web
+```
+
+Rolling back scales the previous ReplicaSet back up and the current one down. No image rebuild, no
+registry pull of something new, no YAML archaeology — the previous desired state is still sitting
+in the cluster. `revisionHistoryLimit` controls how many of these zero-scaled ReplicaSets are kept;
+set it to `0` and you have nothing to roll back to.
+
+## The two mistakes everyone makes once
+
+**The selector must match the template labels.** `spec.selector.matchLabels` and
+`spec.template.metadata.labels` are separate fields and it is entirely possible to write a
+Deployment where they disagree. The API server rejects it — `selector` does not match template
+`labels` — but the error is easy to misread as a YAML problem.
+
+**The selector is immutable.** You cannot change `spec.selector` after creation. If you need
+different labels, create a new Deployment and delete the old one. This is why version information
+must never appear in the selector: the first upgrade that changes it will fail with `field is
+immutable`.
+
+## When a Deployment is the wrong choice
+
+| Controller | Use it when |
+| --- | --- |
+| **Deployment** | Stateless, interchangeable replicas. Web servers, APIs, workers. |
+| **StatefulSet** | Replicas need stable identity and their own storage. Databases, brokers, anything with a quorum. |
+| **DaemonSet** | Exactly one Pod per node. Log shippers, CNI agents, node exporters. |
+| **Job** / **CronJob** | Run to completion, once or on a schedule. Migrations, batch imports. |
+
+A Deployment's Pods are deliberately anonymous — `web-7d4b9c6f85-2xk4l` means nothing, and Pod 2 is
+not distinguishable from Pod 3. When identity matters (`db-0` must always reattach the same disk),
+you want a StatefulSet instead.
+
+## The takeaway
+
+- A **Pod** is the unit of scheduling. Alone, it is unmanaged and disappears for good.
+- A **ReplicaSet** keeps N copies of one exact Pod template alive.
+- A **Deployment** manages ReplicaSets, giving you versioned rollouts and one-command rollback.
+
+Create Pods directly only for throwaway debugging (`kubectl run --rm -it`). For anything that should
+survive the night, describe the desired state and let a controller converge on it.
+
+## Further reading
+
+- [Kubernetes fundamentals](/docs/learn/kubernetes-fundamentals) — the wider object model.
+- [Deploy your first app to Kubernetes](/docs/guides/deploy-first-app) — this post, hands on.
+- [Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) in the
+  official documentation.
