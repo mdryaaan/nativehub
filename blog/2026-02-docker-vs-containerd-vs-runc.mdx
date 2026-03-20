@@ -1,0 +1,203 @@
+---
+slug: docker-vs-containerd-vs-runc
+title: Docker vs containerd vs runc — what's actually running your containers
+authors: [mdryaan]
+tags: [containers, runtimes, oci]
+date: 2026-02-11
+description: Docker is a toolkit, containerd is the daemon that manages container lifecycle, and runc is the binary that actually asks the kernel for a container. Here is the real layering.
+keywords: [docker, containerd, runc, oci, cri, shim, container runtime]
+image: /img/social-card.png
+---
+
+"Kubernetes removed Docker support" caused a lot of confusion in 2021, and the confusion persists
+because most people never had a reason to learn what sits underneath `docker run`. The stack is
+layered, each layer has a specification, and once you see the boundaries the whole thing is
+straightforward.
+
+{/* truncate */}
+
+## The stack, top to bottom
+
+```
+docker CLI                    what you type
+    │  REST over a Unix socket
+    ▼
+dockerd                       image build, networking, volumes, Compose
+    │  gRPC
+    ▼
+containerd                    image pull/store, container lifecycle, snapshots
+    │  spawns one shim per container
+    ▼
+containerd-shim-runc-v2       keeps the container alive independently of containerd
+    │  exec
+    ▼
+runc                          sets up namespaces + cgroups, then execs your process
+    │  syscalls: clone(), unshare(), setns(), pivot_root(), write to cgroupfs
+    ▼
+Linux kernel                  the only thing that actually "creates" a container
+```
+
+Each arrow is a real, documented interface, not an implementation detail.
+
+## runc: the low-level runtime
+
+**runc** is a single static binary that implements the [OCI Runtime
+Specification](https://github.com/opencontainers/runtime-spec). Its entire job is: given a directory
+on disk containing a root filesystem and a `config.json`, create the container the config describes
+and run the process inside it.
+
+It does not know what an image is. It cannot pull from a registry. It has no notion of tags,
+networks, or volumes. It performs, roughly:
+
+1. `clone()` / `unshare()` with the requested namespace flags — new PID, mount, network, UTS, IPC,
+   and optionally user namespace.
+2. Writes the resource limits into the cgroup filesystem.
+3. Sets up mounts: `/proc`, `/sys`, `/dev`, and anything the config lists.
+4. `pivot_root()` into the bundle's `rootfs`.
+5. Drops capabilities, applies the seccomp filter, applies the AppArmor or SELinux label.
+6. `execve()` the process from `process.args`.
+
+You can drive it by hand, which is the fastest way to make the abstraction concrete:
+
+```bash
+mkdir -p /tmp/mycontainer/rootfs && cd /tmp/mycontainer
+
+# Borrow a root filesystem from an existing image
+docker export $(docker create alpine:3.21) | tar -C rootfs -xf -
+
+# Generate a default config.json
+runc spec
+
+# Run it — no Docker, no containerd, no daemon
+sudo runc run demo
+```
+
+You are now in a shell inside a container that no container manager knows about. That is all a
+container fundamentally is.
+
+<div style={{ marginTop: '1.25rem' }} />
+
+Alternative low-level runtimes implement the same spec and slot into the same position: **crun**
+(written in C, faster startup, lower memory), **gVisor/runsc** (a user-space kernel that intercepts
+syscalls), and **Kata Containers** (each container in a lightweight VM). Because the interface is
+specified, swapping them is a configuration change, not a migration.
+
+## containerd: the daemon
+
+**containerd** is a long-running daemon and a CNCF graduated project. It handles everything runc
+deliberately does not:
+
+- Pulling images from registries and verifying their digests
+- Unpacking image layers into snapshots (overlayfs, btrfs, devmapper)
+- Managing the container lifecycle: create, start, stop, delete, and exec
+- Attaching stdio, collecting exit codes, and reporting events
+- Namespacing its own state, so Docker and Kubernetes can share one containerd without collisions
+
+When containerd starts a container it does not fork runc as a child. It launches a **shim**
+(`containerd-shim-runc-v2`), one per container, and the shim invokes runc. This indirection is the
+reason containerd can be restarted or upgraded without killing running containers: the shim is the
+container's parent and keeps holding its stdio and exit status, so containerd can reconnect
+afterwards.
+
+```bash
+# ctr is containerd's low-level debug CLI — not a Docker replacement
+sudo ctr namespaces list
+sudo ctr -n k8s.io images list | head
+sudo ctr -n k8s.io containers list
+
+# nerdctl is the Docker-compatible CLI for containerd
+nerdctl run -d -p 8080:80 nginx:1.27-alpine
+```
+
+Note the `k8s.io` namespace. On a Kubernetes node, that is where the kubelet's containers live —
+which is exactly why `docker ps` on such a node shows nothing.
+
+## Docker: the developer toolkit
+
+**Docker** is the layer above containerd, and it is where the things developers care about actually
+live:
+
+- `docker build` and BuildKit — Dockerfiles, layer caching, multi-stage builds
+- Networking: bridge networks, port publishing, embedded DNS
+- Volume management
+- Docker Compose
+- The user-facing CLI and REST API
+
+Docker donated containerd to the CNCF in 2017 and then adopted it internally. Since Docker 18.09,
+`docker run` ends up as a gRPC call to containerd, which spawns a shim, which execs runc.
+
+```bash
+# The chain, visible in the process tree
+docker run -d --name demo nginx:1.27-alpine
+ps -ef --forest | grep -E 'containerd|nginx' | head
+```
+
+## Where the CRI fits
+
+Kubernetes never wanted to talk to a specific vendor's daemon, so it defines the **Container Runtime
+Interface** — a gRPC API the kubelet uses for image and container operations. Any runtime
+implementing CRI can back a Kubernetes node.
+
+- **containerd** implements CRI natively via its built-in CRI plugin.
+- **CRI-O** is a runtime built solely for Kubernetes: CRI in, OCI runtime out, nothing else.
+- **Docker** never implemented CRI. The kubelet used a built-in adapter called **dockershim** to
+  translate.
+
+That adapter is what was removed in Kubernetes 1.24. Nothing about "Docker images" was deprecated —
+they are OCI images, and every CRI runtime runs them unchanged. What went away was the kubelet's
+special-case translation layer for talking to `dockerd`. Since Docker already sat *on top of*
+containerd, removing it from the node path simply deleted a hop:
+
+```
+Before 1.24:  kubelet → dockershim → dockerd → containerd → shim → runc
+After  1.24:  kubelet → CRI ───────────────→ containerd → shim → runc
+```
+
+<div style={{ marginTop: '1.25rem' }} />
+
+`crictl` is the debugging CLI for whatever CRI runtime a node uses:
+
+```bash
+sudo crictl ps
+sudo crictl images
+sudo crictl logs <container-id>
+sudo crictl inspect <container-id>
+```
+
+## The three specifications
+
+The reason all of this interoperates is that the Open Container Initiative standardised the
+boundaries:
+
+| Specification | Defines | Consumed by |
+| --- | --- | --- |
+| **Image spec** | The layout of an image: layers, config, manifest, index | containerd, CRI-O, Podman, BuildKit |
+| **Runtime spec** | A *bundle*: a `rootfs` directory plus `config.json` | runc, crun, runsc, Kata |
+| **Distribution spec** | The registry HTTP API for push and pull | Docker Hub, GHCR, ECR, Harbor, Zot |
+
+An image built by `docker build`, pushed to GHCR, pulled by containerd, and run by crun crosses four
+different implementations without anyone negotiating anything, because each hand-off is specified.
+
+## So which one do I use?
+
+| You are… | Use |
+| --- | --- |
+| Developing on a laptop | **Docker Desktop** or **Podman Desktop** — you want builds, Compose, and volumes |
+| Running a Kubernetes node | **containerd** (the default nearly everywhere) or **CRI-O** |
+| Debugging a Kubernetes node | **crictl**, not `docker` — the kubelet's containers are in containerd's `k8s.io` namespace |
+| Building images in CI | **BuildKit** (via `docker buildx`), or **Buildah**/**Kaniko** for daemonless builds |
+| Needing stronger isolation | **gVisor** or **Kata Containers**, dropped in as the OCI runtime |
+
+## The one-sentence summary
+
+**Docker** is a developer toolkit that delegates to **containerd**, a daemon that manages images and
+container lifecycle and delegates to **runc**, a binary that asks the **kernel** for namespaces and
+cgroups and then execs your process. Kubernetes talks to containerd (or CRI-O) through the CRI and
+skips Docker on the node entirely.
+
+## Further reading
+
+- [What is an OCI bundle?](/blog/what-is-oci-bundle) — a close look at `config.json`.
+- [Docker fundamentals](/docs/learn/docker-fundamentals) — the layer model and Dockerfile practice.
+- The [OCI runtime spec](https://github.com/opencontainers/runtime-spec) and
+  [containerd architecture docs](https://github.com/containerd/containerd/blob/main/docs/README.md).
