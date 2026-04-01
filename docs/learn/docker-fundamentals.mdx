@@ -1,0 +1,220 @@
+---
+id: docker-fundamentals
+title: Docker fundamentals
+sidebar_label: Docker fundamentals
+sidebar_position: 1
+description: Images, layers, containers, the union filesystem, and the Dockerfile instructions that actually matter.
+keywords: [docker, containers, images, dockerfile, oci]
+---
+
+import CalloutBox from '@site/src/components/CalloutBox';
+import CodeTabs from '@site/src/components/CodeTabs';
+
+A container is not a small virtual machine. It is an ordinary Linux process that the kernel has
+been asked to lie to: it sees its own process tree, its own network interfaces, and its own root
+filesystem, while sharing the host kernel with every other process on the machine.
+
+Everything else — images, registries, `docker run` — is machinery built around that idea.
+
+## The three kernel features underneath
+
+| Feature | What it isolates | Example |
+| --- | --- | --- |
+| **Namespaces** | What a process can *see* | PID, network, mount, UTS, IPC, user, cgroup |
+| **cgroups** | What a process can *use* | CPU shares, memory limit, PIDs limit, block I/O |
+| **Union filesystem** | How the root filesystem is *assembled* | overlayfs stacking read-only layers under one writable layer |
+
+Namespaces give a container its own view of the world. cgroups (control groups) cap its
+consumption so one container cannot starve the rest of the host. The union filesystem is what makes
+images cheap to store and fast to start.
+
+<CalloutBox variant="info" title="Shared kernel">
+  Because containers share the host kernel, a Linux container cannot run on a Windows kernel and
+  vice versa. Docker Desktop on macOS and Windows runs a small Linux VM behind the scenes — the
+  containers inside it are still Linux containers.
+</CalloutBox>
+
+## Images and layers
+
+An image is an ordered stack of read-only filesystem layers plus a JSON configuration blob
+describing how to start the container (entrypoint, env, working directory, exposed ports).
+
+Each instruction in a `Dockerfile` that changes the filesystem — `RUN`, `COPY`, `ADD` — produces a
+new layer containing only the *difference* from the layer below it. Instructions that only change
+metadata — `ENV`, `WORKDIR`, `CMD`, `LABEL`, `EXPOSE` — do not add a filesystem layer.
+
+When you start a container, the runtime stacks those read-only layers with overlayfs and adds a
+thin writable layer on top. Writes go to that top layer via copy-on-write; deleting the container
+throws the writable layer away and leaves the image untouched.
+
+```bash
+# Inspect the layer history of an image, newest layer first
+docker history nginx:1.27-alpine
+
+# See the exact layer digests and the config blob
+docker image inspect nginx:1.27-alpine --format '{{json .RootFS.Layers}}'
+```
+
+<CalloutBox variant="warning" title="Layers are additive, never subtractive">
+  Deleting a file in a later layer only writes a *whiteout* marker — the original bytes are still
+  present in the earlier layer and can be extracted from the image. Never `COPY` a secret in and
+  `RUN rm` it out; use a multi-stage build or a build secret mount instead.
+</CalloutBox>
+
+## Images vs containers vs registries
+
+- An **image** is an immutable, content-addressed artifact identified by a digest such as
+  `sha256:9f3c…`. Tags like `nginx:1.27` are mutable pointers *to* a digest.
+- A **container** is a running (or stopped) instance of an image, with its own writable layer,
+  namespaces, and cgroup limits.
+- A **registry** stores and serves images. Docker Hub, GitHub Container Registry (`ghcr.io`), and
+  Amazon ECR all speak the same OCI Distribution API.
+
+```bash
+# The digest is the only stable identifier — tags can be overwritten
+docker pull nginx@sha256:0c86a4e4e5d1c4a4c8a1e4bd6b8b7c8e5f2b7c9d0e1f2a3b4c5d6e7f8a9b0c1d
+```
+
+## A Dockerfile worth copying
+
+```dockerfile title="Dockerfile"
+# syntax=docker/dockerfile:1
+
+# ---- build stage -----------------------------------------------------------
+FROM golang:1.23-alpine AS build
+WORKDIR /src
+
+# Copy the manifests first so the dependency layer is cached independently of
+# your source code. Editing main.go will not re-download the module cache.
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
+
+# ---- runtime stage ---------------------------------------------------------
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/server /server
+
+USER nonroot:nonroot
+EXPOSE 8080
+ENTRYPOINT ["/server"]
+```
+
+Three things are doing the real work here:
+
+1. **Multi-stage build.** The Go toolchain (roughly 800 MB) never reaches the final image. Only the
+   compiled binary is copied across, so the published image is a few megabytes.
+2. **Cache-friendly ordering.** Files that change rarely (`go.mod`) are copied before files that
+   change constantly (source). Docker invalidates a layer *and everything after it*, so putting the
+   volatile `COPY . .` last keeps the dependency layer warm.
+3. **Non-root by default.** `USER nonroot` means a container escape starts from an unprivileged
+   account rather than root.
+
+## ENTRYPOINT vs CMD
+
+This trips up almost everyone. Both define what runs; they compose differently.
+
+| | `ENTRYPOINT` | `CMD` |
+| --- | --- | --- |
+| Purpose | The executable | Default arguments to it |
+| Overridden by | `docker run --entrypoint` | Any trailing args to `docker run` |
+| Recommended form | exec form: `["/server"]` | exec form: `["--port=8080"]` |
+
+With `ENTRYPOINT ["/server"]` and `CMD ["--port=8080"]`, running `docker run img --port=9090`
+executes `/server --port=9090`.
+
+<CalloutBox variant="tip" title="Always use the exec form">
+  The shell form (`CMD /server`) wraps your process in `/bin/sh -c`, which becomes PID 1 and does
+  not forward `SIGTERM`. Your app then never gets a chance to shut down gracefully and is killed
+  after the grace period expires. The JSON array (exec) form runs your binary directly as PID 1.
+</CalloutBox>
+
+## Running and inspecting containers
+
+<CodeTabs
+  groupId="docker-basics"
+  items={[
+    {
+      label: 'Run',
+      language: 'bash',
+      code: `
+        # -d detached, -p host:container, --rm cleans up on exit
+        docker run -d --rm --name web -p 8080:80 nginx:1.27-alpine
+
+        # Resource limits map straight onto cgroups
+        docker run -d --name api --memory=512m --cpus=1.5 myapp:latest
+      `,
+    },
+    {
+      label: 'Inspect',
+      language: 'bash',
+      code: `
+        docker ps                       # running containers
+        docker ps -a                    # including exited ones
+        docker logs -f --tail=100 web   # follow stdout/stderr
+        docker inspect web              # full JSON state
+        docker stats                    # live cgroup accounting
+      `,
+    },
+    {
+      label: 'Debug',
+      language: 'bash',
+      code: `
+        # Shell into a running container
+        docker exec -it web sh
+
+        # Why did it exit? 137 = SIGKILL (often the OOM killer), 143 = SIGTERM
+        docker inspect web --format '{{.State.ExitCode}} {{.State.OOMKilled}}'
+      `,
+    },
+    {
+      label: 'Clean up',
+      language: 'bash',
+      code: `
+        docker container prune          # remove stopped containers
+        docker image prune -a           # remove unreferenced images
+        docker system df                # where the disk went
+      `,
+    },
+  ]}
+/>
+
+## Persisting data
+
+The writable layer dies with the container. Anything that must outlive it needs a volume.
+
+```bash
+# Named volume — Docker manages the location under /var/lib/docker/volumes
+docker volume create pgdata
+docker run -d --name db -v pgdata:/var/lib/postgresql/data postgres:17-alpine
+
+# Bind mount — a host path, useful for local development
+docker run -it --rm -v "$PWD":/app -w /app node:22-alpine npm test
+```
+
+Named volumes are the right default for stateful services: they survive `docker rm`, can be backed
+up independently, and do not depend on the host's directory layout.
+
+## Networking in one paragraph
+
+By default a container joins the `bridge` network and gets a private IP. Publishing a port with
+`-p 8080:80` installs a NAT rule so traffic to the host's port 8080 is forwarded to port 80 in the
+container. On a **user-defined** bridge network — created with `docker network create` — Docker also
+runs an embedded DNS server, so containers can reach each other by container name. That name-based
+resolution does *not* work on the default bridge, which is why Compose always creates its own
+network.
+
+```bash
+docker network create appnet
+docker run -d --name db --network appnet postgres:17-alpine
+docker run --rm --network appnet alpine ping -c1 db   # resolves by name
+```
+
+## What to read next
+
+- [Kubernetes fundamentals](./kubernetes-fundamentals.mdx) — what changes when a scheduler owns
+  your containers.
+- [Build and publish a Docker image](../guides/build-docker-image.mdx) — a full worked example with
+  BuildKit caching and multi-arch output.
+- The [official Dockerfile reference](https://docs.docker.com/reference/dockerfile/).
