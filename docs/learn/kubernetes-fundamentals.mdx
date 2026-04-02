@@ -1,0 +1,230 @@
+---
+id: kubernetes-fundamentals
+title: Kubernetes fundamentals
+sidebar_label: Kubernetes fundamentals
+sidebar_position: 2
+description: Control plane, nodes, the reconciliation loop, and the core workload objects — Pod, ReplicaSet, Deployment, StatefulSet, DaemonSet, Job.
+keywords: [kubernetes, pod, deployment, controller, scheduler, etcd]
+---
+
+import CalloutBox from '@site/src/components/CalloutBox';
+import CodeTabs from '@site/src/components/CodeTabs';
+
+Kubernetes is a control loop with an API in front of it. You write down the state you want; a set
+of controllers continuously compares that against the state of the cluster and takes action to close
+the gap. Almost every behaviour that seems surprising at first becomes obvious once you think in
+terms of *desired state* versus *observed state*.
+
+## Cluster anatomy
+
+### Control plane
+
+| Component | Responsibility |
+| --- | --- |
+| **kube-apiserver** | The only component that talks to etcd. Validates, authenticates, authorises, and persists every object. Everything else is a client of this API. |
+| **etcd** | Consistent key-value store holding all cluster state. The one component you must back up. |
+| **kube-scheduler** | Watches for Pods with no `nodeName` and picks a node based on resource requests, affinity rules, taints, and topology constraints. |
+| **kube-controller-manager** | Runs the built-in controllers — Deployment, ReplicaSet, Node, Job, EndpointSlice, and dozens more. |
+| **cloud-controller-manager** | Cloud-specific glue: provisioning load balancers, attaching disks, labelling nodes with zone information. |
+
+### Every node
+
+| Component | Responsibility |
+| --- | --- |
+| **kubelet** | The node agent. Watches the API server for Pods assigned to its node and drives the container runtime to make them exist. Reports status back. |
+| **Container runtime** | containerd or CRI-O. Actually pulls images and starts containers, via the CRI (Container Runtime Interface). |
+| **kube-proxy** | Programs iptables or IPVS rules so that Service virtual IPs are routed to healthy backing Pods. |
+
+<CalloutBox variant="info" title="Nothing is imperative">
+  `kubectl apply` does not create a container. It writes an object to etcd via the API server. A
+  controller notices, creates a Pod object; the scheduler notices, assigns a node; that node's
+  kubelet notices, and finally a container starts. Each hop is an independent watch loop, which is
+  why Kubernetes tolerates any single component restarting.
+</CalloutBox>
+
+## The Pod
+
+A Pod is the smallest object you can schedule. It is **one or more containers that share a network
+namespace and can share volumes** — they reach each other on `localhost`, and they are always
+scheduled together onto the same node.
+
+```yaml title="pod.yaml"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.27-alpine
+      ports:
+        - containerPort: 80
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          memory: 256Mi
+      readinessProbe:
+        httpGet:
+          path: /
+          port: 80
+        initialDelaySeconds: 3
+        periodSeconds: 5
+```
+
+You rarely create Pods directly. A bare Pod is not rescheduled if its node dies — nothing owns it,
+so nothing recreates it. That job belongs to a controller.
+
+### Requests vs limits
+
+This distinction decides whether your workload is stable.
+
+- **`requests`** are what the scheduler reserves. A node is considered "full" based on the sum of
+  requests, not on actual usage.
+- **`limits`** are enforced at runtime by cgroups. Exceeding a **memory** limit gets the container
+  OOM-killed (exit code 137). Exceeding a **CPU** limit does not kill anything — the container is
+  throttled.
+
+<CalloutBox variant="tip" title="Set memory requests equal to memory limits">
+  Memory is incompressible: the kernel cannot take some back under pressure, it can only kill. Equal
+  request and limit puts the Pod in the `Guaranteed` QoS class, which is evicted last. CPU limits,
+  by contrast, are often best left off for latency-sensitive services, since throttling can hurt
+  tail latency more than occasional bursting hurts neighbours.
+</CalloutBox>
+
+## Workload controllers
+
+### Deployment → ReplicaSet → Pod
+
+A **Deployment** does not manage Pods. It manages **ReplicaSets**, and a ReplicaSet manages Pods.
+That indirection is exactly what makes rollouts and rollbacks work: each new Pod template produces a
+new ReplicaSet, and the Deployment scales the new one up while scaling the old one down.
+
+```yaml title="deployment.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: web
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1          # one extra Pod may exist during the rollout
+      maxUnavailable: 0    # never drop below 3 ready Pods
+  template:
+    metadata:
+      labels:
+        app: web           # must match spec.selector.matchLabels
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+```
+
+<CalloutBox variant="warning" title="The selector is immutable">
+  `spec.selector` cannot be changed after creation. If you need different labels, create a new
+  Deployment. Changing `spec.template.metadata.labels` without matching the selector is rejected by
+  the API server.
+</CalloutBox>
+
+### Choosing a controller
+
+| Controller | Use it when | Key property |
+| --- | --- | --- |
+| **Deployment** | Stateless services | Interchangeable Pods, rolling updates, easy rollback |
+| **StatefulSet** | Databases, queues, anything with identity | Stable ordinal names (`db-0`, `db-1`), stable per-Pod storage, ordered rollout |
+| **DaemonSet** | Node-level agents: log shippers, CNI, node exporters | Exactly one Pod per matching node |
+| **Job** | Run-to-completion batch work | Retries until `completions` succeed |
+| **CronJob** | Scheduled batch work | Creates Jobs on a cron schedule |
+
+## The reconciliation loop, concretely
+
+<CodeTabs
+  groupId="k8s-basics"
+  items={[
+    {
+      label: 'Apply',
+      language: 'bash',
+      code: `
+        kubectl apply -f deployment.yaml
+        kubectl rollout status deployment/web --timeout=120s
+      `,
+    },
+    {
+      label: 'Observe',
+      language: 'bash',
+      code: `
+        # The Deployment owns a ReplicaSet, which owns the Pods
+        kubectl get deploy,rs,pod -l app=web
+
+        # Ownership is recorded on the child object
+        kubectl get rs -l app=web -o jsonpath='{.items[0].metadata.ownerReferences[0].name}'
+      `,
+    },
+    {
+      label: 'Update',
+      language: 'bash',
+      code: `
+        # Changing the Pod template creates a brand new ReplicaSet
+        kubectl set image deployment/web nginx=nginx:1.27.3-alpine
+        kubectl rollout history deployment/web
+      `,
+    },
+    {
+      label: 'Roll back',
+      language: 'bash',
+      code: `
+        # Scales the previous ReplicaSet back up — no image rebuild needed
+        kubectl rollout undo deployment/web
+        kubectl rollout undo deployment/web --to-revision=2
+      `,
+    },
+  ]}
+/>
+
+Delete a Pod managed by a Deployment and a replacement appears within seconds. The ReplicaSet
+controller observed `replicas: 3` but counted 2, so it created one. Nothing "noticed the failure" in
+a special-cased way — the loop simply ran again.
+
+## Namespaces and labels
+
+**Namespaces** partition names, not networks. Two Pods in different namespaces can talk to each
+other freely unless a NetworkPolicy says otherwise; namespaces exist for RBAC boundaries, quotas,
+and avoiding name collisions.
+
+**Labels** are the actual wiring of the cluster. A Service finds its Pods with a label selector; a
+ReplicaSet finds the Pods it owns the same way. Annotations, by contrast, carry data for tools and
+are never used for selection.
+
+```bash
+kubectl get pods -l 'app=web,tier notin (canary)' --all-namespaces
+kubectl label pod web-abc123 tier=canary --overwrite
+```
+
+## Health probes
+
+| Probe | Failure behaviour | Use for |
+| --- | --- | --- |
+| `startupProbe` | Suspends the other probes until it passes once | Slow-booting apps (JVM, large migrations) |
+| `readinessProbe` | Pod removed from Service endpoints; **not** restarted | "Can I serve traffic right now?" |
+| `livenessProbe` | Container is **restarted** | "Am I wedged and unrecoverable?" |
+
+A common outage pattern: pointing a liveness probe at an endpoint that depends on a database. The
+database blips, every replica fails liveness at once, and the whole Deployment restart-loops.
+Readiness should depend on dependencies; liveness should only test the process itself.
+
+## What to read next
+
+- [Kubernetes networking](./kubernetes-networking.mdx) — how a Service actually routes to a Pod.
+- [Kubernetes storage](./kubernetes-storage.mdx) — volumes, PVCs, and StorageClasses.
+- [Deploy your first app](../guides/deploy-first-app.mdx) — put all of this on a real cluster.
