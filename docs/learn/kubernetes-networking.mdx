@@ -1,0 +1,279 @@
+---
+id: kubernetes-networking
+title: Kubernetes networking
+sidebar_label: Kubernetes networking
+sidebar_position: 3
+description: The flat network model, Service types, kube-proxy, EndpointSlices, cluster DNS, Ingress, and NetworkPolicy.
+keywords: [kubernetes, networking, service, clusterip, ingress, coredns, cni]
+---
+
+import CalloutBox from '@site/src/components/CalloutBox';
+import CodeTabs from '@site/src/components/CodeTabs';
+
+Kubernetes networking is built on one rule, and understanding that rule explains most of the rest.
+
+## The flat network model
+
+Every conforming Kubernetes network implementation must satisfy:
+
+1. Every Pod gets its own cluster-unique IP address.
+2. Pods can reach every other Pod **directly by IP, without NAT**, across all nodes.
+3. Agents on a node (kubelet, system daemons) can reach all Pods on that node.
+
+There is no port mapping between Pods. If your container listens on `:8080`, other Pods connect to
+`<pod-ip>:8080`. This is deliberately unlike Docker's default bridge, and it is why a **CNI plugin**
+— Calico, Cilium, Flannel, or a cloud VPC-native plugin — is mandatory. Without one, Pods stay
+`Pending` and node status reports `NetworkReady=false`.
+
+<CalloutBox variant="warning" title="Pod IPs are disposable">
+  A Pod's IP is assigned at creation and is gone forever when the Pod is deleted. Never write one
+  into config. That impermanence is the entire reason Services exist.
+</CalloutBox>
+
+## Services
+
+A Service is a stable virtual address in front of a changing set of Pods. It selects Pods by label,
+and the EndpointSlice controller keeps the list of **ready** backing Pod IPs up to date.
+
+```yaml title="service.yaml"
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  type: ClusterIP
+  selector:
+    app: web        # matches Pod labels, not Deployment labels
+  ports:
+    - name: http
+      port: 80        # the port the Service listens on
+      targetPort: 8080  # the port on the Pod
+      protocol: TCP
+```
+
+### Service types
+
+| Type | What you get | Reachable from |
+| --- | --- | --- |
+| **ClusterIP** (default) | A virtual IP from the service CIDR | Inside the cluster only |
+| **NodePort** | ClusterIP **plus** a port (30000–32767 by default) opened on *every* node | Outside, via `<any-node-ip>:<nodePort>` |
+| **LoadBalancer** | NodePort **plus** a cloud load balancer provisioned by the cloud controller | The internet, via the LB's address |
+| **ExternalName** | A CNAME record only — no proxying, no selector | Inside the cluster, resolves elsewhere |
+
+The types are cumulative. A `LoadBalancer` Service still has a NodePort and still has a ClusterIP;
+the cloud load balancer simply forwards to the NodePort on each node.
+
+<CalloutBox variant="info" title="A headless Service">
+  Setting `clusterIP: None` creates a *headless* Service. No virtual IP is allocated and no proxying
+  happens — DNS returns the A/AAAA records of the individual Pods instead. This is what StatefulSets
+  use so that `db-0.db.default.svc.cluster.local` resolves to one specific Pod.
+</CalloutBox>
+
+### How a ClusterIP actually works
+
+The ClusterIP is not bound to any network interface. Nothing answers ARP for it. It is a purely
+virtual address that exists only as a set of rules:
+
+1. `kube-proxy` on each node watches Services and EndpointSlices from the API server.
+2. In **iptables mode** (the default), it writes NAT rules: packets destined for
+   `10.96.0.10:80` get DNAT'd to one of the backing Pod IPs, chosen at random with equal probability.
+3. In **IPVS mode**, it programs kernel IPVS virtual servers instead, which scale better past a few
+   thousand Services and support real balancing algorithms (`rr`, `lc`, `sh`).
+
+The rewrite happens in the kernel on the *sending* node. There is no proxy process in the data path
+— kube-proxy only maintains rules.
+
+```bash
+# The DNAT rules kube-proxy installed (run on a node)
+sudo iptables -t nat -L KUBE-SERVICES -n | head -20
+
+# The Pod IPs currently behind a Service
+kubectl get endpointslices -l kubernetes.io/service-name=web -o yaml
+```
+
+<CalloutBox variant="tip" title="Empty endpoints = failing readiness">
+  If `kubectl get endpointslices` shows no addresses, the Service is not broken — its selector
+  matches no *ready* Pods. Check the label selector first, then the readiness probe.
+</CalloutBox>
+
+## Cluster DNS
+
+CoreDNS runs as a Deployment in `kube-system` and is itself exposed through a ClusterIP Service
+(conventionally `10.96.0.10`). Every Pod's `/etc/resolv.conf` is written by the kubelet to point at
+it.
+
+```ini title="/etc/resolv.conf inside a Pod in namespace 'prod'"
+nameserver 10.96.0.10
+search prod.svc.cluster.local svc.cluster.local cluster.local
+options ndots:5
+```
+
+The fully qualified form of a Service record is:
+
+```
+<service>.<namespace>.svc.<cluster-domain>
+```
+
+Thanks to the `search` list, a Pod in `prod` can use any of these:
+
+| Query | Resolves to |
+| --- | --- |
+| `web` | `web` in the **same** namespace |
+| `web.prod` | `web` in the `prod` namespace |
+| `web.prod.svc.cluster.local` | Fully qualified — no search-path expansion |
+
+<CalloutBox variant="warning" title="ndots:5 and the trailing dot">
+  With `ndots:5`, any name containing fewer than five dots is tried against every search-domain
+  suffix *before* being tried as-is. Looking up `api.github.com` therefore costs four failed queries
+  first. For hot external calls, use a trailing dot (`api.github.com.`) or set a custom
+  `dnsConfig.options` with a lower `ndots` on the Pod.
+</CalloutBox>
+
+## Pod-to-Pod, step by step
+
+A Pod in `frontend` calls `http://web.backend.svc.cluster.local:80`:
+
+1. **Resolve.** The request goes to CoreDNS at the ClusterIP; CoreDNS returns the Service's
+   ClusterIP, say `10.96.44.7`.
+2. **Connect.** The Pod opens a TCP connection to `10.96.44.7:80`.
+3. **DNAT.** Leaving the Pod's network namespace, the packet hits the node's iptables NAT table.
+   kube-proxy's rules rewrite the destination to a ready backing Pod, e.g. `10.244.3.11:8080`.
+4. **Route.** The CNI plugin delivers the packet to that Pod — over the node bridge if it is local,
+   or across the node network (VXLAN tunnel, BGP route, or native VPC routing) if it is remote.
+5. **Reply.** The response is un-NAT'd by conntrack on the way back, so the client sees a reply from
+   the ClusterIP it dialled.
+
+## Ingress and Gateway API
+
+A `LoadBalancer` Service per HTTP application gets expensive fast — one cloud load balancer each.
+**Ingress** solves this with a single entry point that routes by host and path.
+
+```yaml title="ingress.yaml"
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: site
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: nativehub.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80
+  tls:
+    - hosts: [nativehub.example.com]
+      secretName: site-tls
+```
+
+An Ingress **object** does nothing on its own. An Ingress **controller** — ingress-nginx, Traefik,
+HAProxy, or a cloud controller — must be running to watch these objects and configure a real proxy.
+
+The **Gateway API** (`gateway.networking.k8s.io`) is the successor: role-oriented, extensible, and
+with first-class support for TCP, gRPC, and traffic splitting that Ingress could only express
+through annotations.
+
+## NetworkPolicy
+
+By default, **all Pod-to-Pod traffic is allowed**. A NetworkPolicy changes that, but only for the
+Pods it selects, and only in the directions it declares.
+
+```yaml title="networkpolicy.yaml"
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-allow-api
+  namespace: prod
+spec:
+  podSelector:
+    matchLabels:
+      app: db
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api
+      ports:
+        - protocol: TCP
+          port: 5432
+```
+
+Three rules to internalise:
+
+- Policies are **additive**. Two policies selecting the same Pod produce the union of what they
+  allow; there is no deny rule and no ordering.
+- Selecting a Pod with a `policyTypes: [Ingress]` policy switches that Pod to **default-deny for
+  ingress**. Anything not explicitly allowed is now dropped.
+- NetworkPolicy is enforced by the CNI plugin. Flannel alone does not implement it — the objects are
+  accepted by the API server and silently ignored.
+
+## Debugging checklist
+
+<CodeTabs
+  groupId="k8s-net-debug"
+  items={[
+    {
+      label: 'DNS',
+      language: 'bash',
+      code: `
+        kubectl run netshoot --rm -it --restart=Never \\
+          --image=nicolaka/netshoot -- bash
+
+        # inside the pod
+        nslookup web.default.svc.cluster.local
+        dig +search +short web
+        cat /etc/resolv.conf
+      `,
+    },
+    {
+      label: 'Service',
+      language: 'bash',
+      code: `
+        kubectl get svc web -o wide
+        kubectl get endpointslices -l kubernetes.io/service-name=web
+        kubectl describe svc web | grep -A3 Endpoints
+      `,
+    },
+    {
+      label: 'Reachability',
+      language: 'bash',
+      code: `
+        # Bypass the Service and hit a Pod IP directly.
+        # Works => Service/kube-proxy problem. Fails => app or CNI problem.
+        kubectl get pod -l app=web -o wide
+        kubectl exec -it netshoot -- curl -sv 10.244.3.11:8080
+
+        # Bypass the cluster network entirely
+        kubectl port-forward svc/web 8080:80
+      `,
+    },
+    {
+      label: 'Policy',
+      language: 'bash',
+      code: `
+        kubectl get networkpolicy -A
+        kubectl describe networkpolicy db-allow-api -n prod
+      `,
+    },
+  ]}
+/>
+
+## What to read next
+
+- [A practical guide to Kubernetes networking basics](/blog/kubernetes-networking-basics) — the same
+  ground at a gentler pace, with worked examples.
+- [Kubernetes security basics](./kubernetes-security-basics.mdx) — RBAC, secrets, and Pod hardening.
+- The [official Services concept page](https://kubernetes.io/docs/concepts/services-networking/service/).
