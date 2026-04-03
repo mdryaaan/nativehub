@@ -1,0 +1,287 @@
+---
+id: kubernetes-security-basics
+title: Kubernetes security basics
+sidebar_label: Kubernetes security basics
+sidebar_position: 5
+description: RBAC, ServiceAccounts, securityContext, Pod Security Admission, Secrets, and image supply-chain hygiene.
+keywords: [kubernetes, security, rbac, securitycontext, pod security admission, secrets]
+---
+
+import CalloutBox from '@site/src/components/CalloutBox';
+import CodeTabs from '@site/src/components/CodeTabs';
+
+Kubernetes security splits cleanly into two questions: **who may talk to the API server, and what may
+they do** (RBAC), and **what may a running container do on its node** (securityContext and
+admission). They are enforced by completely different machinery, so it is worth learning them
+separately.
+
+## Authentication vs authorisation
+
+Every request to the API server passes through three stages:
+
+1. **Authentication** — who are you? Client certificates, bearer tokens, or an OIDC provider. Note
+   that Kubernetes has **no User object**: users are external identities the API server trusts.
+   ServiceAccounts, by contrast, *are* real objects in the cluster.
+2. **Authorisation** — may you do this? Almost always RBAC.
+3. **Admission control** — should this specific object be allowed, mutated, or rejected? Pod
+   Security Admission, ResourceQuota, and any ValidatingAdmissionPolicy or webhook run here.
+
+## RBAC
+
+Four object types, in two pairs:
+
+| Scope | Permissions | Binding |
+| --- | --- | --- |
+| Namespaced | `Role` | `RoleBinding` |
+| Cluster-wide | `ClusterRole` | `ClusterRoleBinding` |
+
+A `RoleBinding` may reference a `ClusterRole` — a common and useful pattern that grants the
+ClusterRole's permissions, but only within the binding's namespace.
+
+```yaml title="rbac.yaml"
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: prod
+  name: deploy-reader
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]              # "" is the core API group
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: prod
+  name: oncall-can-read
+subjects:
+  - kind: Group
+    name: sre-oncall
+    apiGroup: rbac.authorization.k8s.io
+  - kind: ServiceAccount
+    name: dashboard
+    namespace: prod
+roleRef:
+  kind: Role
+  name: deploy-reader
+  apiGroup: rbac.authorization.k8s.io
+```
+
+RBAC is **purely additive**. There are no deny rules; a subject's effective permissions are the
+union of every binding that applies to it. Removing access means removing a binding.
+
+```bash
+# The single most useful RBAC command
+kubectl auth can-i delete pods --namespace prod
+kubectl auth can-i list secrets --as system:serviceaccount:prod:dashboard -n prod
+
+# Everything a subject can do
+kubectl auth can-i --list --as system:serviceaccount:prod:dashboard -n prod
+```
+
+<CalloutBox variant="warning" title="Subresources are separate resources">
+  `pods/log`, `pods/exec`, and `pods/portforward` must be granted explicitly. Granting `get` on
+  `pods` does not let someone read logs — and granting `create` on `pods/exec` is effectively root
+  on any node running a privileged Pod, so treat it as an administrative permission.
+</CalloutBox>
+
+### ServiceAccounts
+
+Every Pod runs as a ServiceAccount — the namespace's `default` one unless you say otherwise. Since
+Kubernetes 1.24 the token is not a long-lived Secret: the kubelet projects a short-lived, audience-
+bound token that is automatically rotated.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: worker
+spec:
+  serviceAccountName: worker
+  # If the workload never calls the Kubernetes API, do not give it a token at all.
+  automountServiceAccountToken: false
+  containers:
+    - name: app
+      image: myapp:1.0
+```
+
+The `default` ServiceAccount should have **no** RoleBindings. Give each workload its own account
+with exactly the permissions it needs.
+
+## securityContext
+
+This is where you constrain the container itself. A hardened baseline:
+
+```yaml title="hardened-pod.yaml"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hardened
+spec:
+  securityContext:              # Pod-level: applies to all containers
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001              # chowns mounted volumes to this GID
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: app
+      image: myapp:1.0
+      securityContext:          # container-level: overrides the Pod level
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        privileged: false
+        capabilities:
+          drop: ["ALL"]
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp       # writable scratch, since root fs is read-only
+  volumes:
+    - name: tmp
+      emptyDir: {}
+```
+
+What each setting buys you:
+
+| Setting | Effect |
+| --- | --- |
+| `runAsNonRoot: true` | The kubelet refuses to start the container if the image's user is UID 0 |
+| `allowPrivilegeEscalation: false` | Sets the `no_new_privs` bit — setuid binaries cannot gain privileges |
+| `readOnlyRootFilesystem: true` | The image's filesystem is mounted read-only; attackers cannot drop tools into it |
+| `capabilities.drop: ["ALL"]` | Removes every Linux capability, including `CAP_NET_RAW` and `CAP_CHOWN` |
+| `seccompProfile: RuntimeDefault` | Applies the container runtime's syscall filter, blocking hundreds of rarely-needed syscalls |
+| `privileged: true` | **Disables almost all isolation.** Effectively root on the node. Avoid outside of CNI and CSI drivers. |
+
+<CalloutBox variant="tip" title="Binding to port 80 as non-root">
+  A non-root process cannot bind to ports below 1024 without `CAP_NET_BIND_SERVICE`. The clean fix
+  is to listen on 8080 in the container and have the Service map `port: 80` to
+  `targetPort: 8080` — no capability needed.
+</CalloutBox>
+
+## Pod Security Admission
+
+PSA is the built-in replacement for the removed PodSecurityPolicy. It is a namespace-level label
+that enforces one of three profiles at admission time.
+
+| Profile | Allows | Use for |
+| --- | --- | --- |
+| `privileged` | Everything | System namespaces running CNI/CSI |
+| `baseline` | Blocks known escalations: hostNetwork, hostPID, privileged, most hostPath | Legacy workloads being migrated |
+| `restricted` | Enforces non-root, dropped capabilities, seccomp, no privilege escalation | Everything you write yourself |
+
+```bash
+# Warn now, so you can see what would break
+kubectl label namespace prod \
+  pod-security.kubernetes.io/warn=restricted \
+  pod-security.kubernetes.io/warn-version=latest
+
+# Then enforce
+kubectl label namespace prod \
+  pod-security.kubernetes.io/enforce=restricted \
+  pod-security.kubernetes.io/enforce-version=latest --overwrite
+```
+
+Roll out `warn` and `audit` first. `enforce` rejects non-conforming Pods outright, and because it
+applies at Pod creation, a Deployment will appear healthy while its ReplicaSet quietly fails to
+create anything.
+
+## Secrets
+
+Secrets are **base64-encoded, not encrypted**, in etcd by default. Anyone who can read the Secret
+object, or read etcd on disk, can read the value.
+
+```bash
+# This is encoding, not protection
+kubectl get secret db-secret -o jsonpath='{.data.password}' | base64 -d
+```
+
+Three things to do about that:
+
+1. **Enable encryption at rest** on the API server (`--encryption-provider-config`), ideally backed
+   by a KMS provider rather than a local key.
+2. **Lock down RBAC on secrets.** `get`/`list` on `secrets` in a namespace is equivalent to holding
+   every credential in it. Never grant it broadly.
+3. **Prefer an external store.** The External Secrets Operator or the Secrets Store CSI driver pull
+   values from Vault, AWS Secrets Manager, or GCP Secret Manager at Pod start, keeping the material
+   out of etcd and out of Git.
+
+<CalloutBox variant="warning" title="Mount secrets, do not env them">
+  Environment variables leak: they appear in `kubectl describe pod`, in crash dumps, and in any
+  child process's `/proc/<pid>/environ`. A projected volume mount keeps the value in a tmpfs file
+  readable only by the container's user — and unlike env vars, it is updated when the Secret changes.
+</CalloutBox>
+
+## Supply chain hygiene
+
+<CodeTabs
+  groupId="k8s-supply-chain"
+  items={[
+    {
+      label: 'Pin digests',
+      language: 'yaml',
+      code: `
+        # A tag is mutable; a digest is not. Pin digests in production.
+        containers:
+          - name: app
+            image: ghcr.io/acme/api@sha256:6f8e2c1b9a4d5e7f0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f50617
+            imagePullPolicy: IfNotPresent
+      `,
+    },
+    {
+      label: 'Scan',
+      language: 'bash',
+      code: `
+        # Trivy — CNCF-adjacent scanner, works on images, filesystems and manifests
+        trivy image --severity HIGH,CRITICAL ghcr.io/acme/api:1.4.2
+
+        # Scan the manifests themselves for misconfiguration
+        trivy config ./k8s/
+      `,
+    },
+    {
+      label: 'Verify',
+      language: 'bash',
+      code: `
+        # Sigstore cosign — keyless signing and verification
+        cosign sign ghcr.io/acme/api:1.4.2
+        cosign verify ghcr.io/acme/api:1.4.2 \\
+          --certificate-identity-regexp='https://github.com/acme/.*' \\
+          --certificate-oidc-issuer=https://token.actions.githubusercontent.com
+      `,
+    },
+    {
+      label: 'Audit',
+      language: 'bash',
+      code: `
+        # Who can do the dangerous things?
+        kubectl auth can-i --list --as system:serviceaccount:default:default
+
+        # Find privileged pods across the cluster
+        kubectl get pods -A -o json | \\
+          jq -r '.items[] | select(.spec.containers[].securityContext.privileged == true)
+                 | .metadata.namespace + "/" + .metadata.name'
+      `,
+    },
+  ]}
+/>
+
+## A starting checklist
+
+- [ ] Every workload has its own ServiceAccount; `default` has no bindings.
+- [ ] `automountServiceAccountToken: false` unless the Pod calls the API.
+- [ ] Namespaces labelled with Pod Security Admission `restricted` (warn first, then enforce).
+- [ ] `runAsNonRoot`, `drop: ["ALL"]`, `allowPrivilegeEscalation: false` on every container.
+- [ ] Images pinned by digest and scanned in CI.
+- [ ] Secrets encrypted at rest, mounted as files, never committed to Git.
+- [ ] Default-deny NetworkPolicy per namespace, with explicit allows.
+- [ ] Resource requests and limits set, so one workload cannot starve the node.
+
+## What to read next
+
+- [Kubernetes networking](./kubernetes-networking.mdx) — NetworkPolicy in detail.
+- [Set up a CI/CD pipeline](../guides/setup-cicd-github-actions.mdx) — where scanning and signing fit.
+- The [official security concepts](https://kubernetes.io/docs/concepts/security/).
