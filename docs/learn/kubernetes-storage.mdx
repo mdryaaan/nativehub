@@ -1,0 +1,283 @@
+---
+id: kubernetes-storage
+title: Kubernetes storage
+sidebar_label: Kubernetes storage
+sidebar_position: 4
+description: Volumes, PersistentVolumes, PersistentVolumeClaims, StorageClasses, dynamic provisioning, access modes, and CSI.
+keywords: [kubernetes, storage, pvc, persistentvolume, storageclass, csi, statefulset]
+---
+
+import CalloutBox from '@site/src/components/CalloutBox';
+import CodeTabs from '@site/src/components/CodeTabs';
+
+A container's filesystem is ephemeral: restart the container and every write is gone. Kubernetes
+offers a layered answer to that, and the layers are worth keeping straight because they fail in
+different ways.
+
+## Three levels of persistence
+
+| Level | Lifetime | Typical use |
+| --- | --- | --- |
+| Container filesystem | Dies on container restart | Scratch space you do not care about |
+| **Volume** (`emptyDir`, `configMap`, `secret`, `projected`) | Dies with the **Pod** | Sharing files between containers in a Pod, injecting config |
+| **PersistentVolume** via a **PVC** | Independent of any Pod | Databases, uploads, anything that must survive rescheduling |
+
+### Pod-scoped volumes
+
+```yaml title="pod-with-volumes.yaml"
+apiVersion: v1
+kind: Pod
+metadata:
+  name: renderer
+spec:
+  containers:
+    - name: app
+      image: myapp:1.0
+      volumeMounts:
+        - name: cache
+          mountPath: /var/cache/app
+        - name: config
+          mountPath: /etc/app
+          readOnly: true
+    - name: sidecar
+      image: uploader:1.0
+      volumeMounts:
+        - name: cache          # same volume, both containers see the same files
+          mountPath: /data
+  volumes:
+    - name: cache
+      emptyDir:
+        sizeLimit: 1Gi
+    - name: config
+      configMap:
+        name: app-config
+```
+
+`emptyDir` is created empty when the Pod is assigned to a node and deleted when the Pod is removed
+from that node. Container *restarts* do not clear it — only Pod deletion does. Setting
+`emptyDir.medium: Memory` backs it with tmpfs, which is fast but counts against the container's
+memory limit.
+
+<CalloutBox variant="info" title="ConfigMap and Secret mounts update themselves">
+  Files projected from a ConfigMap or Secret are refreshed by the kubelet after a change, typically
+  within a minute. Your application must re-read the file to notice — nothing signals it. Values
+  injected as environment variables via `envFrom` are **never** updated; the Pod must be recreated.
+</CalloutBox>
+
+## PersistentVolume and PersistentVolumeClaim
+
+The split exists to separate concerns:
+
+- A **PersistentVolume (PV)** is a piece of storage in the cluster — a cloud disk, an NFS export, a
+  local SSD. It is a cluster-scoped resource, usually created by a provisioner rather than by hand.
+- A **PersistentVolumeClaim (PVC)** is a namespaced *request* for storage: "I need 20 GiB that I can
+  mount read-write from one node." Pods reference the claim, never the volume.
+
+Kubernetes binds a PVC to a suitable PV. With **dynamic provisioning** — the normal case today — no
+PV exists until the PVC is created, and the StorageClass's provisioner makes one on demand.
+
+```yaml title="pvc.yaml"
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgdata
+spec:
+  storageClassName: standard-rwo
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+```
+
+```yaml title="deployment-using-pvc.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: db }
+  strategy:
+    type: Recreate    # RWO volumes cannot be attached to two Pods at once
+  template:
+    metadata:
+      labels: { app: db }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: pgdata
+```
+
+<CalloutBox variant="warning" title="RollingUpdate plus ReadWriteOnce equals deadlock">
+  The default rolling strategy starts the new Pod before terminating the old one. With an RWO
+  volume already attached to the old Pod's node, the new Pod sits in `ContainerCreating` with a
+  `FailedAttachVolume` event forever. Use `strategy: Recreate` for single-replica stateful
+  Deployments — or better, a StatefulSet.
+</CalloutBox>
+
+## Access modes
+
+Access modes describe how many **nodes** may mount the volume, not how many Pods.
+
+| Mode | Short | Meaning |
+| --- | --- | --- |
+| `ReadWriteOnce` | RWO | Read-write by a single **node**. Multiple Pods on that same node can share it. |
+| `ReadOnlyMany` | ROX | Read-only by many nodes |
+| `ReadWriteMany` | RWX | Read-write by many nodes |
+| `ReadWriteOncePod` | RWOP | Read-write by exactly one **Pod** in the whole cluster |
+
+Cloud block storage (EBS, GCE PD, Azure Disk) is RWO only. RWX requires a shared filesystem: NFS,
+CephFS, Amazon EFS, Azure Files. Asking for RWX from a block-storage StorageClass leaves the PVC
+`Pending` indefinitely.
+
+## StorageClass
+
+A StorageClass names a provisioner and the parameters it should use. It is also where two important
+policies live.
+
+```yaml title="storageclass.yaml"
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  iops: "5000"
+  throughput: "250"
+  encrypted: "true"
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+```
+
+- **`reclaimPolicy`** — what happens to the PV when its PVC is deleted. `Delete` destroys the
+  underlying disk; `Retain` keeps it and leaves the PV in `Released` for manual recovery. Dynamic
+  provisioning defaults to `Delete`.
+- **`volumeBindingMode: WaitForFirstConsumer`** — delays provisioning until a Pod using the claim is
+  scheduled, so the disk is created in the same zone as the Pod. With the default `Immediate`, a
+  disk provisioned in `us-east-1a` can leave the Pod permanently unschedulable if capacity is only
+  in `us-east-1b`. **Use `WaitForFirstConsumer` on any multi-zone cluster.**
+- **`allowVolumeExpansion: true`** lets you grow a PVC later by editing
+  `spec.resources.requests.storage`. Shrinking is never supported.
+
+<CalloutBox variant="danger" title="Reclaim policy is a data-loss switch">
+  With `reclaimPolicy: Delete`, `kubectl delete pvc pgdata` destroys the cloud disk and everything
+  on it. For production databases set `Retain`, and treat backups as a separate concern regardless.
+</CalloutBox>
+
+## StatefulSets and volumeClaimTemplates
+
+A Deployment's Pods all reference the *same* PVC. A StatefulSet gives each replica its own, created
+automatically from a template:
+
+```yaml title="statefulset.yaml"
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+spec:
+  serviceName: db          # must be a headless Service
+  replicas: 3
+  selector:
+    matchLabels: { app: db }
+  template:
+    metadata:
+      labels: { app: db }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: fast-ssd
+        resources:
+          requests:
+            storage: 50Gi
+```
+
+This produces PVCs named `data-db-0`, `data-db-1`, `data-db-2`. If `db-1` is deleted and
+rescheduled, it comes back with the same name **and** reattaches `data-db-1`. That stable pairing of
+identity and storage is the whole point of a StatefulSet.
+
+Deleting the StatefulSet does **not** delete these PVCs — that is intentional, and it means you must
+clean them up yourself when you really want the data gone.
+
+## CSI in one paragraph
+
+Every storage integration today is a **CSI (Container Storage Interface)** driver: an out-of-tree
+plugin that implements a gRPC contract. A controller component handles `CreateVolume` and
+`ControllerPublishVolume` (provision and attach); a node component runs as a DaemonSet and handles
+`NodeStageVolume` and `NodePublishVolume` (format and mount). The in-tree cloud provider volume
+plugins have been removed in favour of CSI, so `kubectl get csidrivers` is now the first thing to
+check when storage misbehaves.
+
+## Debugging storage
+
+<CodeTabs
+  groupId="k8s-storage-debug"
+  items={[
+    {
+      label: 'Claim state',
+      language: 'bash',
+      code: `
+        kubectl get pvc
+        kubectl describe pvc pgdata        # events explain a Pending claim
+        kubectl get pv                     # is a PV bound to it?
+        kubectl get storageclass           # is there a default class?
+      `,
+    },
+    {
+      label: 'Attachment',
+      language: 'bash',
+      code: `
+        kubectl describe pod db-0 | tail -25    # FailedAttachVolume / FailedMount
+        kubectl get volumeattachments
+        kubectl get csidrivers
+      `,
+    },
+    {
+      label: 'Inside the Pod',
+      language: 'bash',
+      code: `
+        kubectl exec -it db-0 -- df -h /var/lib/postgresql/data
+        kubectl exec -it db-0 -- ls -la /var/lib/postgresql/data
+        kubectl exec -it db-0 -- mount | grep postgres
+      `,
+    },
+  ]}
+/>
+
+Two failures cover most cases: a `Pending` PVC almost always means no default StorageClass or an
+unsatisfiable access mode, and a Pod stuck in `ContainerCreating` with `FailedAttachVolume` almost
+always means the RWO volume is still attached to another node.
+
+## What to read next
+
+- [Kubernetes security basics](./kubernetes-security-basics.mdx) — including `fsGroup` and
+  filesystem ownership.
+- [Debugging CrashLoopBackOff](../guides/debugging-pod-failures.mdx).
+- The [official storage concepts](https://kubernetes.io/docs/concepts/storage/).
