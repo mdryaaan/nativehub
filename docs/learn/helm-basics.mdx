@@ -1,0 +1,303 @@
+---
+id: helm-basics
+title: Helm basics
+sidebar_label: Helm basics
+sidebar_position: 6
+description: Charts, releases, values, templates, the Go template language, and the Helm commands you will actually run.
+keywords: [helm, charts, kubernetes, templating, releases]
+---
+
+import CalloutBox from '@site/src/components/CalloutBox';
+import CodeTabs from '@site/src/components/CodeTabs';
+
+Kubernetes manifests are static YAML. The moment you need the same application in staging and
+production with different replica counts, image tags, and hostnames, you need either a templating
+layer or a lot of copy-paste. Helm is the most widely deployed answer.
+
+## The four nouns
+
+| Term | What it is |
+| --- | --- |
+| **Chart** | A versioned package of templates plus default values |
+| **Values** | The configuration input, merged from `values.yaml`, `-f` files, and `--set` flags |
+| **Release** | One installation of a chart into a cluster, with a name and a revision history |
+| **Repository** | An HTTP server (or OCI registry) hosting packaged charts |
+
+The key mental model: **Helm renders templates locally into plain Kubernetes manifests, then sends
+those manifests to the API server.** There is no in-cluster Helm component. Helm 3 removed Tiller
+entirely; release state is stored in a Secret in the release's namespace.
+
+```bash
+# Prove it — render without touching the cluster
+helm template myrelease ./mychart --values prod-values.yaml
+```
+
+## Chart layout
+
+```
+mychart/
+├── Chart.yaml           # name, version, appVersion, dependencies
+├── values.yaml          # default configuration
+├── values.schema.json   # optional JSON Schema, validated on install
+├── templates/
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── ingress.yaml
+│   ├── _helpers.tpl     # named template definitions; not rendered itself
+│   └── NOTES.txt        # printed after install
+├── charts/              # vendored subchart dependencies
+└── .helmignore
+```
+
+Two versions live in `Chart.yaml` and they mean different things:
+
+```yaml title="Chart.yaml"
+apiVersion: v2
+name: mychart
+description: A web service
+type: application
+version: 1.4.2        # the CHART version — bump on any chart change
+appVersion: "2.7.0"   # the APPLICATION version — the image tag you ship
+```
+
+## Templating
+
+Templates are Go templates with the Sprig function library plus a handful of Helm-specific
+additions.
+
+```yaml title="templates/deployment.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mychart.fullname" . }}
+  labels:
+    {{- include "mychart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mychart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Roll the Pods whenever the ConfigMap content changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "mychart.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+```
+
+### The built-in objects
+
+| Object | Contains |
+| --- | --- |
+| `.Values` | The merged values |
+| `.Chart` | Fields from `Chart.yaml` — `.Chart.Name`, `.Chart.Version`, `.Chart.AppVersion` |
+| `.Release` | `.Release.Name`, `.Release.Namespace`, `.Release.IsUpgrade`, `.Release.Revision` |
+| `.Capabilities` | Cluster facts — `.Capabilities.KubeVersion`, `.Capabilities.APIVersions.Has` |
+| `.Files` | Non-template files in the chart, via `.Files.Get` |
+
+### Whitespace, the part everyone fights
+
+- `{{- ` trims whitespace **before** the action, including the preceding newline.
+- ` -}}` trims whitespace **after** it.
+- `nindent N` prepends a newline and indents every line by N spaces — the correct tool for splicing
+  a YAML block into a nested position.
+- `indent N` indents without the leading newline.
+
+<CalloutBox variant="tip" title="Debug renders, not clusters">
+  `helm template` renders offline. `helm install --dry-run --debug` renders *and* validates against
+  the live API server, which additionally catches bad API versions and schema errors. Reach for
+  these before you reach for `kubectl describe`.
+</CalloutBox>
+
+### Named templates
+
+`_helpers.tpl` holds reusable fragments. The leading underscore tells Helm not to treat the file as
+a manifest.
+
+```
+{{/* templates/_helpers.tpl */}}
+{{- define "mychart.name" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "mychart.fullname" -}}
+{{- if .Values.fullnameOverride }}
+{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- printf "%s-%s" .Release.Name (include "mychart.name" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{- define "mychart.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "mychart.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{- define "mychart.labels" -}}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" }}
+{{ include "mychart.selectorLabels" . }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+```
+
+The `trunc 63` is not decoration — Kubernetes label values and most name fields are limited to 63
+characters, and a long release name will otherwise produce an object the API server rejects.
+
+## Values precedence
+
+Later sources win:
+
+1. The chart's own `values.yaml`
+2. A parent chart's values (for subcharts)
+3. `-f` / `--values` files, in the order given
+4. `--set`, `--set-string`, `--set-file`, `--set-json`
+
+```bash
+helm upgrade --install web ./mychart \
+  -f values.yaml \
+  -f values-prod.yaml \
+  --set image.tag=2.7.1 \
+  --set-string podAnnotations.buildId=00421
+```
+
+<CalloutBox variant="warning" title="--set parses types">
+  `--set replicaCount=3` yields the integer 3, but `--set image.tag=1.10` yields the *float* 1.1,
+  which produces a broken image reference. Use `--set-string image.tag=1.10` for anything that must
+  stay a string, and quote commas and dots: `--set 'nodeSelector.kubernetes\.io/os=linux'`.
+</CalloutBox>
+
+## Everyday commands
+
+<CodeTabs
+  groupId="helm-basics"
+  items={[
+    {
+      label: 'Install',
+      language: 'bash',
+      code: `
+        helm repo add bitnami https://charts.bitnami.com/bitnami
+        helm repo update
+        helm search repo bitnami/postgresql --versions
+
+        # upgrade --install is idempotent: use it for both first install and updates
+        helm upgrade --install pg bitnami/postgresql \\
+          --namespace data --create-namespace \\
+          --version 16.2.1 \\
+          --set auth.database=appdb \\
+          --wait --timeout 5m
+      `,
+    },
+    {
+      label: 'Inspect',
+      language: 'bash',
+      code: `
+        helm list --all-namespaces
+        helm status pg -n data
+        helm get values pg -n data              # user-supplied values only
+        helm get values pg -n data --all        # merged with chart defaults
+        helm get manifest pg -n data            # what was actually applied
+      `,
+    },
+    {
+      label: 'Upgrade & roll back',
+      language: 'bash',
+      code: `
+        helm history pg -n data
+        helm upgrade pg bitnami/postgresql -n data --version 16.3.0 --atomic
+        helm rollback pg 3 -n data --wait
+      `,
+    },
+    {
+      label: 'Author',
+      language: 'bash',
+      code: `
+        helm create mychart          # scaffold with sane defaults
+        helm lint ./mychart
+        helm template rel ./mychart -f values-prod.yaml | kubectl apply --dry-run=client -f -
+        helm package ./mychart       # produces mychart-1.4.2.tgz
+        helm push mychart-1.4.2.tgz oci://ghcr.io/acme/charts
+      `,
+    },
+  ]}
+/>
+
+`--atomic` is the flag worth remembering: it rolls the release back automatically if the upgrade
+fails, so you never sit in a half-applied state. It implies `--wait`.
+
+## Dependencies
+
+```yaml title="Chart.yaml"
+dependencies:
+  - name: postgresql
+    version: "16.2.1"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled     # skip the subchart when false
+    alias: primary                    # rename it in values
+```
+
+```bash
+helm dependency update ./mychart   # writes Chart.lock and populates charts/
+helm dependency build ./mychart    # installs exactly what Chart.lock pins
+```
+
+Commit `Chart.lock`. Treat vendored `charts/*.tgz` the way you treat `node_modules` — usually
+ignored, and rebuilt from the lock file in CI.
+
+## Hooks
+
+Annotations turn a manifest into a lifecycle hook, run at a specific point rather than as part of
+the release:
+
+```yaml
+metadata:
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-weight": "-5"                    # lower runs first
+    "helm.sh/hook-delete-policy": hook-succeeded
+```
+
+Available points include `pre-install`, `post-install`, `pre-upgrade`, `post-upgrade`,
+`pre-delete`, `post-delete`, and `test`. Database migrations are the canonical `pre-upgrade` Job.
+
+<CalloutBox variant="info" title="Hook resources are not tracked">
+  Objects created by a hook are not part of the release. `helm rollback` will not undo them and
+  `helm uninstall` will not remove them unless a `hook-delete-policy` says so. Migrations must
+  therefore be written to be idempotent.
+</CalloutBox>
+
+## When Helm is not the answer
+
+Helm's templating is string manipulation over YAML, which becomes hard to reason about in large
+charts. Alternatives worth knowing:
+
+- **Kustomize** — overlays and strategic merge patches, no templating language, built into `kubectl
+  apply -k`. Excellent for "same manifests, small per-environment differences".
+- **cdk8s / Pulumi** — define manifests in a real programming language with real types.
+- **Timoni / KCL** — CUE-based, schema-first configuration with strong validation.
+
+Helm remains the default for *distributing* third-party applications, because a versioned, packaged
+artifact with a values contract is exactly what that job needs.
+
+## What to read next
+
+- [Write your first Helm chart](../guides/write-first-helm-chart.mdx) — build one end to end.
+- [Kubernetes fundamentals](./kubernetes-fundamentals.mdx) — what the templates are producing.
+- The [official Helm docs](https://helm.sh/docs/).
