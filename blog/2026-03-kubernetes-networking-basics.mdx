@@ -1,0 +1,267 @@
+---
+slug: kubernetes-networking-basics
+title: A practical guide to Kubernetes networking basics
+authors: [mdryaan]
+tags: [kubernetes, networking, fundamentals]
+date: 2026-03-09
+description: Services, ClusterIP vs NodePort vs LoadBalancer, how pod-to-pod traffic actually flows, and how DNS resolution works inside a cluster.
+keywords: [kubernetes, networking, service, clusterip, nodeport, loadbalancer, coredns, dns]
+image: /img/social-card.png
+---
+
+Kubernetes networking has a reputation for being impenetrable. It mostly is not — there are about
+five ideas, and the confusion comes from the fact that ClusterIPs are virtual addresses that no
+machine actually owns. Once that clicks, the rest follows.
+
+{/* truncate */}
+
+## The rule everything is built on
+
+A conforming Kubernetes network must satisfy three requirements:
+
+1. Every Pod has its own unique IP address.
+2. **Any Pod can reach any other Pod by IP, across nodes, without NAT.**
+3. Agents on a node can reach every Pod on that node.
+
+There is no port mapping between Pods. If your container listens on `:8080`, another Pod connects to
+`<pod-ip>:8080` directly. This is deliberately unlike Docker's default bridge networking, where you
+publish ports to the host and everything talks through NAT.
+
+Kubernetes itself does not implement this. A **CNI plugin** — Calico, Cilium, Flannel, or your cloud
+provider's VPC-native plugin — does. This is why a fresh cluster with no CNI installed leaves every
+Pod `Pending` and every node reporting `NetworkReady=false`.
+
+## Pod IPs are worthless to you
+
+```bash
+kubectl get pods -o wide
+```
+
+```
+NAME                   READY   STATUS    IP            NODE
+web-7d4b9c6f85-2xk4l   1/1     Running   10.244.1.14   worker-1
+web-7d4b9c6f85-9mfqz   1/1     Running   10.244.2.7    worker-2
+```
+
+Those addresses are real and reachable — and completely disposable. Delete a Pod and its IP is gone
+forever; the replacement gets a new one. Any configuration containing a Pod IP is already wrong.
+
+This impermanence is the entire reason Services exist.
+
+## Services: a stable name for a moving target
+
+```yaml title="service.yaml"
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  type: ClusterIP
+  selector:
+    app: web          # matches POD labels
+  ports:
+    - name: http
+      port: 80        # the port the Service answers on
+      targetPort: 8080  # the port on the Pod
+```
+
+```bash
+kubectl apply -f service.yaml
+kubectl get svc web
+```
+
+```
+NAME   TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)
+web    ClusterIP   10.96.171.42   <none>        80/TCP
+```
+
+`10.96.171.42` is stable for the Service's whole lifetime. Behind it, the **EndpointSlice
+controller** watches for Pods matching the selector and keeps a list of the **ready** ones:
+
+```bash
+kubectl get endpointslices -l kubernetes.io/service-name=web -o yaml | grep -A2 addresses
+```
+
+<div style={{ marginTop: '1.25rem' }} />
+
+Two consequences worth internalising:
+
+- The selector matches **Pod** labels, not the Deployment's labels. They are often different, and
+  this is the number one cause of a Service that resolves but connects to nothing.
+- Only **ready** Pods are listed. If your readiness probe is failing, the endpoint list is empty and
+  connections are refused — the Service is working exactly as designed.
+
+## The four Service types
+
+| Type | What it adds | Reachable from |
+| --- | --- | --- |
+| **ClusterIP** | A virtual IP inside the cluster | Inside the cluster only |
+| **NodePort** | ClusterIP + a port on every node (30000–32767) | Outside, via `<node-ip>:<nodePort>` |
+| **LoadBalancer** | NodePort + a cloud load balancer | The internet |
+| **ExternalName** | A CNAME record only, no proxying | Inside the cluster, resolving elsewhere |
+
+They are **cumulative**. A LoadBalancer Service still has a NodePort and still has a ClusterIP; the
+cloud load balancer simply forwards to that NodePort on each node.
+
+### ClusterIP — the default
+
+Internal only. Use it for everything that is not deliberately exposed: databases, internal APIs,
+caches. Practically every Service in a cluster should be this type.
+
+### NodePort — mostly for development
+
+```yaml
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30080   # optional; auto-assigned from 30000-32767 if omitted
+```
+
+Every node now listens on 30080 and forwards to the Service, whether or not that node runs a
+backing Pod. It is useful with kind or minikube; in production it means high, non-standard ports and
+no TLS termination.
+
+### LoadBalancer — the production door
+
+```yaml
+spec:
+  type: LoadBalancer
+```
+
+The cloud-controller-manager provisions a real load balancer and writes its address into
+`status.loadBalancer`. The catch is cost and count: **one cloud load balancer per Service**. Ten
+HTTP services means ten load balancers and ten bills.
+
+That is what **Ingress** and the **Gateway API** exist to solve — a single load balancer fronting an
+in-cluster proxy that routes by hostname and path.
+
+<div style={{ marginTop: '1.25rem' }} />
+
+There is one setting on NodePort and LoadBalancer Services worth knowing:
+`externalTrafficPolicy`. The default, `Cluster`, lets any node forward to a Pod on any other node —
+even balancing, but the extra hop SNATs the packet and your application sees the node's IP instead
+of the real client's. Setting it to `Local` forwards only to Pods on the receiving node, preserving
+the client IP at the cost of uneven balancing when Pods are unevenly spread.
+
+## How a ClusterIP actually works
+
+This is the part that surprises people: **nothing is listening on the ClusterIP.** No interface has
+that address. Nothing answers ARP for it. You cannot ping it meaningfully.
+
+It exists only as a set of kernel rules:
+
+1. `kube-proxy` runs on every node and watches Services and EndpointSlices from the API server.
+2. In **iptables mode** (the default) it writes NAT rules: packets destined for `10.96.171.42:80`
+   are DNAT'd to one of the ready backing Pod IPs, chosen at random with equal probability.
+3. In **IPVS mode** it programs kernel IPVS virtual servers instead — better scaling past a few
+   thousand Services, and real balancing algorithms.
+
+The rewrite happens in the kernel on the **sending** node, before the packet ever leaves. kube-proxy
+is not in the data path; it only maintains rules. That is why kube-proxy can be restarted without
+dropping connections.
+
+```bash
+# On a node: the rules kube-proxy installed
+sudo iptables -t nat -L KUBE-SERVICES -n | head -20
+```
+
+## Pod-to-pod, step by step
+
+A Pod in namespace `frontend` calls `http://web.backend.svc.cluster.local`:
+
+1. **DNS.** The request goes to CoreDNS, which returns the Service's ClusterIP — say
+   `10.96.171.42`.
+2. **Connect.** The Pod opens a TCP connection to `10.96.171.42:80`.
+3. **DNAT.** As the packet leaves the Pod's network namespace it hits the node's NAT table.
+   kube-proxy's rules rewrite the destination to a ready Pod, `10.244.2.7:8080`.
+4. **Route.** The CNI plugin delivers it — over the local bridge if that Pod is on this node, or
+   across the node network (VXLAN tunnel, BGP route, or native VPC routing) if it is not.
+5. **Reply.** conntrack un-NATs the response, so the client sees a reply from the address it dialled.
+
+The Pod never knew it was load balanced. It dialled one address and got an answer.
+
+## DNS inside the cluster
+
+CoreDNS runs as a Deployment in `kube-system`, exposed by its own ClusterIP Service. The kubelet
+writes every Pod's `/etc/resolv.conf` to point at it:
+
+```ini title="/etc/resolv.conf in a Pod in namespace 'frontend'"
+nameserver 10.96.0.10
+search frontend.svc.cluster.local svc.cluster.local cluster.local
+options ndots:5
+```
+
+The canonical record is `<service>.<namespace>.svc.cluster.local`, and the search path lets you
+abbreviate:
+
+| From a Pod in `frontend`, this query… | resolves to |
+| --- | --- |
+| `web` | the `web` Service in `frontend` |
+| `web.backend` | the `web` Service in `backend` |
+| `web.backend.svc.cluster.local` | the same, fully qualified — no search expansion |
+
+Cross-namespace calls need at least `<service>.<namespace>`. A bare `web` will only ever find a
+Service in the caller's own namespace.
+
+<div style={{ marginTop: '1.25rem' }} />
+
+**The `ndots:5` gotcha.** Any name with fewer than five dots is tried against every search suffix
+*before* being tried as written. Looking up `api.github.com` (two dots) therefore issues
+`api.github.com.frontend.svc.cluster.local`, then `...svc.cluster.local`, then `...cluster.local`,
+and only then the real query — four wasted round trips per lookup. For hot external calls, use a
+trailing dot (`api.github.com.`) to force an absolute lookup, or set a lower `ndots` in the Pod's
+`dnsConfig`.
+
+## Headless Services
+
+Setting `clusterIP: None` allocates no virtual IP and installs no proxy rules. DNS then returns the
+A records of the individual Pods:
+
+```bash
+$ nslookup db.default.svc.cluster.local
+Address: 10.244.1.21
+Address: 10.244.2.33
+Address: 10.244.3.9
+```
+
+This is what StatefulSets use. Combined with a StatefulSet's stable names, each replica gets its own
+resolvable record — `db-0.db.default.svc.cluster.local` — which is exactly what a database client
+needs to distinguish a primary from a replica.
+
+## Debugging: three commands in order
+
+```bash
+# 1. Does the Service have any endpoints?
+kubectl get endpointslices -l kubernetes.io/service-name=web
+# Empty => selector mismatch or failing readiness probe. Stop here and fix it.
+
+# 2. Does DNS resolve?
+kubectl run netshoot --rm -it --restart=Never --image=nicolaka/netshoot -- \
+  nslookup web.default.svc.cluster.local
+
+# 3. Does the Pod itself answer, bypassing the Service?
+kubectl exec -it netshoot -- curl -sv 10.244.2.7:8080
+# Works => Service/kube-proxy problem. Fails => application or CNI problem.
+```
+
+That third step is the one that saves the most time: it splits "the Service is misconfigured" from
+"the application is not listening" in a single command.
+
+## The five ideas
+
+1. Every Pod gets a real, routable IP — and it is disposable.
+2. A **Service** is a stable virtual IP over a label-selected set of **ready** Pods.
+3. That virtual IP is only kernel NAT rules, maintained by **kube-proxy**. Nothing listens on it.
+4. **CoreDNS** maps `service.namespace.svc.cluster.local` to that virtual IP, and `ndots:5` makes
+   short names cheap and external names expensive.
+5. Service types are cumulative: LoadBalancer contains NodePort contains ClusterIP.
+
+## Further reading
+
+- [Kubernetes networking](/docs/learn/kubernetes-networking) — Ingress, Gateway API, and
+  NetworkPolicy in more depth.
+- [Debugging pod failures](/docs/guides/debugging-pod-failures) — when it is not the network.
+- The official [Services, Load Balancing, and Networking](https://kubernetes.io/docs/concepts/services-networking/)
+  documentation.
