@@ -1,0 +1,302 @@
+---
+id: debugging-pod-failures
+title: Debugging CrashLoopBackOff and common pod failures
+sidebar_label: Debugging pod failures
+sidebar_position: 5
+description: A systematic method for diagnosing Pending, ImagePullBackOff, CrashLoopBackOff, OOMKilled, and stuck Terminating pods.
+keywords: [kubernetes, debugging, crashloopbackoff, imagepullbackoff, oomkilled, troubleshooting]
+---
+
+import CalloutBox from '@site/src/components/CalloutBox';
+import CodeTabs from '@site/src/components/CodeTabs';
+
+Almost every Pod failure falls into one of six buckets, and the Pod's status tells you which one
+before you look at anything else. This guide is the decision tree, then the details.
+
+## The 60-second triage
+
+```bash
+# 1. What state is it in, and how many times has it restarted?
+kubectl get pod <pod> -o wide
+
+# 2. Why? Events at the bottom of describe are the highest-signal output in Kubernetes.
+kubectl describe pod <pod>
+
+# 3. What did the app say before it died?
+kubectl logs <pod> --previous --tail=100
+
+# 4. What else happened around that time?
+kubectl get events --sort-by=.lastTimestamp --field-selector involvedObject.name=<pod>
+```
+
+`--previous` is the one people forget. On a crash-looping Pod, `kubectl logs` shows the *current*
+container, which has usually only just started. `--previous` shows the instance that actually died.
+
+| Status | Meaning | Go to |
+| --- | --- | --- |
+| `Pending` | Not scheduled, or volumes not attached | [Pending](#pending) |
+| `ImagePullBackOff` / `ErrImagePull` | The kubelet cannot fetch the image | [Image pull](#imagepullbackoff) |
+| `CrashLoopBackOff` | The container starts and exits, repeatedly | [CrashLoopBackOff](#crashloopbackoff) |
+| `OOMKilled` (in `Last State`) | Exceeded its memory limit | [OOMKilled](#oomkilled) |
+| `Running` but not `Ready` | Readiness probe failing | [Not ready](#running-but-not-ready) |
+| `Terminating` forever | A finalizer or an ignored SIGTERM | [Stuck terminating](#stuck-terminating) |
+
+## Pending
+
+The Pod object exists but no kubelet has been told to run it. `describe` names the reason exactly.
+
+```bash
+kubectl describe pod <pod> | sed -n '/Events:/,$p'
+```
+
+| Event message | Cause | Fix |
+| --- | --- | --- |
+| `0/3 nodes are available: 3 Insufficient cpu` | Requests exceed free capacity on every node | Lower requests, or add nodes |
+| `had untolerated taint {node-role.kubernetes.io/control-plane: }` | Only control-plane nodes are free | Add a worker, or a toleration |
+| `pod has unbound immediate PersistentVolumeClaims` | The PVC is not bound | See [Kubernetes storage](../learn/kubernetes-storage.mdx) |
+| `node(s) didn't match Pod's node affinity/selector` | `nodeSelector` matches nothing | Check node labels |
+| `node(s) exceed max volume count` | Node's attachable-disk limit hit | Spread across nodes |
+
+<CalloutBox variant="tip" title="Compare requests against allocatable, not capacity">
+  `kubectl describe node` reports both. `Capacity` is the machine's total; `Allocatable` subtracts
+  what is reserved for the kubelet and system daemons. The scheduler only ever considers
+  `Allocatable`, and the `Allocated resources` table at the bottom of that output shows how much is
+  already spoken for.
+</CalloutBox>
+
+```bash
+kubectl describe node <node> | sed -n '/Allocated resources/,$p'
+kubectl get pods -A -o custom-columns=\
+'NS:.metadata.namespace,NAME:.metadata.name,CPU:.spec.containers[*].resources.requests.cpu'
+```
+
+## ImagePullBackOff
+
+The kubelet tried to pull and failed. The exact error is in the events.
+
+| Message | Cause |
+| --- | --- |
+| `manifest unknown` / `not found` | Typo in the tag, or the tag was deleted |
+| `unauthorized` / `denied` | Private registry with no working pull secret |
+| `no match for platform in manifest` | `amd64`-only image on an `arm64` node |
+| `dial tcp ... i/o timeout` | Node cannot reach the registry — egress or proxy |
+
+```bash
+# Is the pull secret referenced, and does it have the right server?
+kubectl get pod <pod> -o jsonpath='{.spec.imagePullSecrets}'
+kubectl get secret ghcr -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | jq '.auths | keys'
+
+# Prove the reference is valid, independently of the cluster
+docker manifest inspect ghcr.io/owner/app:1.2.3
+```
+
+<CalloutBox variant="warning" title="imagePullPolicy and the :latest trap">
+  `imagePullPolicy` defaults to `Always` when the tag is `latest` or absent, and `IfNotPresent`
+  otherwise. Push new content under the same non-latest tag and nodes that already cached it will
+  keep running the old bytes indefinitely. Use immutable tags or digests.
+</CalloutBox>
+
+## CrashLoopBackOff
+
+This is not an error in itself — it is Kubernetes telling you it is *waiting* before restarting a
+container that keeps exiting. The backoff doubles from 10s up to a 5-minute cap.
+
+The question is always: **why did the process exit?**
+
+```bash
+kubectl logs <pod> --previous --tail=200
+kubectl get pod <pod> -o jsonpath='{.status.containerStatuses[0].lastState.terminated}' | jq
+```
+
+### Reading the exit code
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Exited cleanly — a batch process in a Deployment, which expects a long-running server |
+| `1` | Generic application error — read the logs |
+| `2` | Shell misuse, often a bad `command`/`args` |
+| `126` | Command found but not executable — missing `chmod +x` |
+| `127` | Command not found — wrong path, or a shell-less base image like distroless |
+| `137` | SIGKILL — usually the OOM killer, sometimes a failed liveness probe restart |
+| `139` | SIGSEGV — segmentation fault |
+| `143` | SIGTERM — terminated normally by Kubernetes |
+
+### The usual causes
+
+<CodeTabs
+  groupId="crashloop"
+  items={[
+    {
+      label: 'Config missing',
+      language: 'bash',
+      code: `
+        # A referenced ConfigMap or Secret key that does not exist keeps the
+        # container in CreateContainerConfigError, not CrashLoopBackOff — but a
+        # missing *value* often crashes the app on startup.
+        kubectl get configmap app-config -o yaml
+        kubectl get secret db-secret -o jsonpath='{.data}' | jq 'keys'
+        kubectl exec <pod> -- env | sort
+      `,
+    },
+    {
+      label: 'Dependency down',
+      language: 'bash',
+      code: `
+        # App exits because it cannot reach the database on boot.
+        kubectl exec -it <pod> -- sh -c 'nc -zv db 5432'
+        kubectl get endpointslices -l kubernetes.io/service-name=db
+
+        # Fix properly with a retry loop in the app, or an initContainer that waits.
+      `,
+    },
+    {
+      label: 'Liveness too aggressive',
+      language: 'yaml',
+      code: `
+        # Restarts every ~30s with no application error in the logs?
+        # The liveness probe is killing a healthy-but-slow container.
+        startupProbe:            # give slow boots room, then hand over
+          httpGet: { path: /healthz, port: 8080 }
+          failureThreshold: 30
+          periodSeconds: 5       # allows up to 150s to start
+
+        livenessProbe:
+          httpGet: { path: /healthz, port: 8080 }
+          periodSeconds: 15
+          failureThreshold: 3
+      `,
+    },
+    {
+      label: 'Permissions',
+      language: 'bash',
+      code: `
+        # "permission denied" with runAsNonRoot or readOnlyRootFilesystem set.
+        kubectl get pod <pod> -o jsonpath='{.spec.securityContext}' | jq
+        kubectl exec <pod> -- id
+
+        # Writes to a mounted volume need fsGroup so the kernel chowns it:
+        #   spec.securityContext.fsGroup: 10001
+        # Writes to the image filesystem need an emptyDir mounted at that path.
+      `,
+    },
+  ]}
+/>
+
+### Getting a shell when the container will not stay up
+
+You cannot `kubectl exec` into a container that exits immediately. Three ways around it:
+
+```bash
+# 1. Ephemeral debug container — shares the target's namespaces, needs no restart
+kubectl debug -it <pod> --image=nicolaka/netshoot --target=<container>
+
+# 2. Copy the Pod with the entrypoint replaced by a shell
+kubectl debug <pod> -it --copy-to=<pod>-debug --container=<container> -- sh
+
+# 3. Run the image standalone with the same command, outside Kubernetes
+docker run --rm -it --entrypoint sh ghcr.io/owner/app:1.2.3
+```
+
+`kubectl debug` with `--target` is the one to reach for: the debug container joins the running
+Pod's process and network namespaces, so you can inspect the real process, its `/proc`, and its
+network view without changing anything.
+
+## OOMKilled
+
+```bash
+kubectl get pod <pod> -o jsonpath='{.status.containerStatuses[0].lastState.terminated.reason}'
+# -> OOMKilled
+
+kubectl describe pod <pod> | grep -E 'Limits|Requests' -A3
+```
+
+The container exceeded `resources.limits.memory` and the kernel's OOM killer terminated it. Memory
+is incompressible — unlike CPU, it cannot be throttled, only reclaimed by killing.
+
+Real fixes, in order of preference:
+
+1. **Measure first.** `kubectl top pod <pod> --containers` shows current usage; a Prometheus history
+   shows the peak, which is what the limit must accommodate.
+2. **Tell the runtime about the limit.** A JVM without `-XX:MaxRAMPercentage=75` sizes its heap from
+   the *node's* memory, not the cgroup's, and will happily exceed the limit. Node.js needs
+   `--max-old-space-size`; Go usually needs `GOMEMLIMIT`.
+3. **Raise the limit** once you know the real working set — with request equal to limit, so the Pod
+   lands in the `Guaranteed` QoS class and is evicted last under node pressure.
+
+<CalloutBox variant="info" title="OOMKilled without hitting your limit">
+  If the container's usage was well under its limit, the *node* ran out of memory and the kubelet
+  evicted Pods by QoS class: `BestEffort` first, then `Burstable`, then `Guaranteed`. Check
+  `kubectl describe node` for `MemoryPressure` and look for `Evicted` Pods.
+</CalloutBox>
+
+## Running but not Ready
+
+The container is alive; its readiness probe is failing, so the Service removes it from the
+endpoints and it receives no traffic.
+
+```bash
+kubectl get pod <pod> -o jsonpath='{.status.conditions}' | jq
+kubectl describe pod <pod> | grep -A5 Readiness
+
+# Test the probe target from inside the Pod itself
+kubectl exec <pod> -- wget -qO- --timeout=2 http://localhost:8080/healthz
+```
+
+Frequent causes: the probe's `port` does not match the container's actual listen port; the app binds
+`127.0.0.1` instead of `0.0.0.0`, so the kubelet cannot reach it from outside the container; or
+`initialDelaySeconds` is shorter than the real startup time.
+
+## Stuck Terminating
+
+```bash
+kubectl get pod <pod> -o jsonpath='{.metadata.deletionTimestamp} {.metadata.finalizers}'
+```
+
+Two distinct causes:
+
+- **Finalizers.** Something registered a finalizer and has not removed it — commonly a CSI driver or
+  an operator that is itself down. Fix the controller. Removing the finalizer by hand
+  (`kubectl patch pod <pod> -p '{"metadata":{"finalizers":null}}' --type=merge`) skips the cleanup
+  that finalizer existed to perform, so treat it as a last resort.
+- **SIGTERM ignored.** Kubernetes sends SIGTERM, waits `terminationGracePeriodSeconds` (30 by
+  default), then SIGKILLs. A Pod that hangs for exactly 30 seconds every time is not handling
+  SIGTERM — usually because the entrypoint is a shell wrapper that never forwards the signal. Use
+  the exec form: `ENTRYPOINT ["node", "server.js"]`.
+
+## A reusable debugging pod
+
+```bash
+kubectl run netshoot --rm -it --restart=Never --image=nicolaka/netshoot -- bash
+```
+
+`netshoot` bundles `dig`, `curl`, `tcpdump`, `nmap`, `iperf`, `ss`, and `jq`. Being able to test DNS
+and connectivity *from inside the cluster network* separates "the app is broken" from "the network
+is broken" in about thirty seconds.
+
+## Cluster-wide sweep
+
+```bash
+# Everything that is not Running or Succeeded
+kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded
+
+# Restart counts, worst first
+kubectl get pods -A --sort-by='.status.containerStatuses[0].restartCount' | tail -15
+
+# Warnings across the cluster in time order
+kubectl get events -A --field-selector type=Warning --sort-by=.lastTimestamp | tail -30
+
+# Node health at a glance
+kubectl get nodes -o wide
+kubectl top nodes
+```
+
+## The method, in one line
+
+**Status → describe → previous logs → exit code → reproduce.** Nearly every Pod failure yields to
+that sequence, and the ones that do not are usually a networking problem — for which
+[Kubernetes networking](../learn/kubernetes-networking.mdx) has its own checklist.
+
+## Next steps
+
+- [Kubernetes fundamentals](../learn/kubernetes-fundamentals.mdx) — probes, QoS, and controllers.
+- [Common kubectl commands](/blog/common-kubectl-commands) — the reference behind these snippets.
