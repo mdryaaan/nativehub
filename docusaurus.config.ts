@@ -1,6 +1,71 @@
-import type { Config } from '@docusaurus/types';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+import type { Config, LoadContext, Plugin } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import { DEFAULT_PARSE_FRONT_MATTER } from '@docusaurus/utils';
 import { themes as prismThemes } from 'prism-react-renderer';
+
+export interface LatestPost {
+  title: string;
+  description: string;
+  permalink: string;
+  date: string;
+  readingTime: number;
+  tags: string[];
+}
+
+/**
+ * Exposes the newest blog posts as global data so the homepage can render a
+ * live "latest from the blog" section instead of a hand-maintained list.
+ *
+ * The blog plugin's own global data only carries titles and permalinks, so we
+ * read the front matter directly to get descriptions, tags, and word counts.
+ */
+async function latestPostsPlugin(context: LoadContext): Promise<Plugin<LatestPost[]>> {
+  const blogDir = path.join(context.siteDir, 'blog');
+
+  return {
+    name: 'nativehub-latest-posts',
+
+    async loadContent() {
+      const entries = await fs.readdir(blogDir);
+      const files = entries.filter((f) => f.endsWith('.mdx') || f.endsWith('.md'));
+
+      const posts = await Promise.all(
+        files.map(async (file) => {
+          const filePath = path.join(blogDir, file);
+          const fileContent = await fs.readFile(filePath, 'utf8');
+          const { frontMatter, content } = await DEFAULT_PARSE_FRONT_MATTER({
+            filePath,
+            fileContent,
+            defaultFrontMatter: {},
+          });
+          const fm = frontMatter as Record<string, unknown>;
+
+          const words = content.split(/\s+/).filter(Boolean).length;
+
+          return {
+            title: String(fm.title ?? file),
+            description: String(fm.description ?? ''),
+            permalink: `/blog/${String(fm.slug ?? file.replace(/\.mdx?$/, ''))}`,
+            date: new Date(String(fm.date)).toISOString(),
+            // 220 wpm, matching the blog plugin's own reading-time estimate
+            // closely enough for a preview card.
+            readingTime: Math.max(1, Math.round(words / 220)),
+            tags: Array.isArray(fm.tags) ? fm.tags.map(String) : [],
+          } satisfies LatestPost;
+        }),
+      );
+
+      return posts.sort((a, b) => b.date.localeCompare(a.date));
+    },
+
+    async contentLoaded({ content, actions }) {
+      actions.setGlobalData(content ?? []);
+    },
+  };
+}
 
 const organizationName = 'mdryaan';
 const projectName = 'nativehub';
@@ -100,6 +165,8 @@ const config: Config = {
   ],
 
   plugins: [
+    latestPostsPlugin,
+
     // Wire Tailwind into the Docusaurus PostCSS pipeline.
     function tailwindPlugin() {
       return {
