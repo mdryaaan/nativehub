@@ -1,0 +1,44 @@
+kubernetes:
+  label: Kubernetes
+  permalink: /kubernetes
+  description: Workloads, controllers, and the API that ties them together.
+
+containers:
+  label: Containers
+  permalink: /containers
+  description: Images, runtimes, and the kernel features underneath them.
+
+networking:
+  label: Networking
+  permalink: /networking
+  description: Services, DNS, CNI, and how packets actually get where they are going.
+
+runtimes:
+  label: Runtimes
+  permalink: /runtimes
+  description: containerd, runc, CRI, and the OCI specifications.
+
+fundamentals:
+  label: Fundamentals
+  permalink: /fundamentals
+  description: Core concepts worth getting right early.
+
+tooling:
+  label: Tooling
+  permalink: /tooling
+  description: kubectl, kind, and the rest of the day-to-day toolbox.
+
+kubectl:
+  label: kubectl
+  permalink: /kubectl
+  description: Working the Kubernetes API from the command line.
+
+local-development:
+  label: Local development
+  permalink: /local-development
+  description: Running realistic clusters on your own machine.
+
+oci:
+  label: OCI
+  permalink: /oci
+  description: The Open Container Initiative image, runtime, and distribution specs.
