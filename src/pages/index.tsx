@@ -1,4 +1,5 @@
 import Layout from '@theme/Layout';
+import FeatureCard from '@site/src/components/FeatureCard';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import type { ReactNode } from 'react';
@@ -100,6 +101,125 @@ function Hero(): ReactNode {
   );
 }
 
+const SECTIONS = [
+  {
+    eyebrow: 'Concepts',
+    title: 'Learn',
+    description:
+      'Concept-first explanations of the primitives you meet every day — containers, Pods, Services, volumes, RBAC, and Helm.',
+    to: '/docs/learn',
+    highlights: ['Docker', 'Kubernetes', 'Networking', 'Storage', 'Security', 'Helm'],
+    icon: (
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+      </svg>
+    ),
+  },
+  {
+    eyebrow: 'Hands on',
+    title: 'Guides',
+    description:
+      'Task-shaped walkthroughs from an empty machine to a running deployment. Every command is written to run as-is.',
+    to: '/docs/guides',
+    highlights: ['Deploy an app', 'Build an image', 'Helm charts', 'CI/CD', 'Debugging'],
+    icon: (
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="m8 9 3 3-3 3" />
+        <path d="M13 15h3" />
+        <rect x="2" y="4" width="20" height="16" rx="2.5" />
+      </svg>
+    ),
+  },
+  {
+    eyebrow: 'Reference',
+    title: 'Tools',
+    description:
+      'Searchable kubectl, docker, and helm cheat sheets, plus an honest directory of the CLI tools worth installing.',
+    to: '/tools',
+    highlights: ['kubectl', 'docker', 'helm', 'k9s', 'stern'],
+    icon: (
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M14.7 6.3a4 4 0 0 0 5 5l-9.9 9.9a2.1 2.1 0 0 1-3-3Z" />
+        <path d="M14.7 6.3 17.5 3.5" />
+      </svg>
+    ),
+  },
+  {
+    eyebrow: 'Curated',
+    title: 'Resources',
+    description:
+      'Official documentation worth bookmarking, real repositories worth reading, and a roadmap from container basics to production.',
+    to: '/resources',
+    highlights: ['Official docs', 'Repos to study', 'Roadmap'],
+    icon: (
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 21a8.4 8.4 0 0 0-6-2.4A1.6 1.6 0 0 1 4.4 17V5.4A1.4 1.4 0 0 1 5.8 4c2.3 0 4.6.8 6.2 2.2" />
+        <path d="M12 21a8.4 8.4 0 0 1 6-2.4A1.6 1.6 0 0 0 19.6 17V5.4A1.4 1.4 0 0 0 18.2 4c-2.3 0-4.6.8-6.2 2.2" />
+        <path d="M12 6.2V21" />
+      </svg>
+    ),
+  },
+];
+
+function Sections(): ReactNode {
+  return (
+    <section className={styles.section}>
+      <div className="container">
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}>Four ways in</h2>
+          <p className={styles.sectionLead}>
+            Whether you are starting from scratch or looking up a flag you half remember, there is a
+            door here for it.
+          </p>
+        </div>
+
+        <div className={styles.featureGrid}>
+          {SECTIONS.map((section) => (
+            <FeatureCard key={section.title} {...section} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Home(): ReactNode {
   const { siteConfig } = useDocusaurusContext();
 
@@ -109,6 +229,7 @@ export default function Home(): ReactNode {
       description="Practical, technically accurate guides for Kubernetes, Docker, Helm, and cloud native development."
     >
       <Hero />
+      <Sections />
     </Layout>
   );
 }
