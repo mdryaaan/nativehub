@@ -2,6 +2,8 @@ import Layout from '@theme/Layout';
 import FeatureCard from '@site/src/components/FeatureCard';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import { usePluginData } from '@docusaurus/useGlobalData';
+import BlogPostCard from '@site/src/components/BlogPostCard';
 import type { ReactNode } from 'react';
 
 import styles from './index.module.css';
@@ -220,6 +222,93 @@ function Sections(): ReactNode {
   );
 }
 
+interface LatestPost {
+  title: string;
+  description: string;
+  permalink: string;
+  date: string;
+  readingTime: number;
+  tags: string[];
+}
+
+function LatestPosts(): ReactNode {
+  // Supplied by the `nativehub-latest-posts` plugin in docusaurus.config.ts,
+  // so this list never drifts from what is actually published.
+  const posts = (usePluginData('nativehub-latest-posts') as LatestPost[] | undefined) ?? [];
+  const latest = posts.slice(0, 3);
+
+  if (latest.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className={styles.section}>
+      <div className="container">
+        <div className={styles.blogHead}>
+          <div>
+            <h2 className={styles.sectionTitle}>Latest from the blog</h2>
+            <p className={styles.sectionLead}>
+              Longer pieces on how things actually work underneath.
+            </p>
+          </div>
+          <Link className={styles.blogAll} to="/blog">
+            All posts
+            <svg
+              aria-hidden="true"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </Link>
+        </div>
+
+        <div className={styles.blogGrid}>
+          {latest.map((post) => (
+            <BlogPostCard key={post.permalink} {...post} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Newsletter(): ReactNode {
+  return (
+    <section className={styles.cta}>
+      <div className="container">
+        <div className={styles.ctaCard}>
+          <h2 className={styles.ctaTitle}>Keep up with new guides</h2>
+          <p className={styles.ctaLead}>
+            New posts land every few weeks. Subscribe with any feed reader — no email address, no
+            tracking, no list to unsubscribe from.
+          </p>
+          <div className={styles.ctaActions}>
+            <Link className="button button--primary button--lg" to="/blog/rss.xml">
+              Subscribe via RSS
+            </Link>
+            <Link
+              className="button button--secondary button--lg"
+              to="https://github.com/mdryaan/nativehub"
+            >
+              Star on GitHub
+            </Link>
+          </div>
+          <p className={styles.ctaNote}>
+            Prefer Atom? <Link to="/blog/atom.xml">Use the Atom feed</Link> instead.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Home(): ReactNode {
   const { siteConfig } = useDocusaurusContext();
 
@@ -230,6 +319,8 @@ export default function Home(): ReactNode {
     >
       <Hero />
       <Sections />
+      <LatestPosts />
+      <Newsletter />
     </Layout>
   );
 }
