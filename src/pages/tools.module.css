@@ -1,0 +1,248 @@
+/* Shared page chrome for the standalone (non-docs) pages. */
+
+.header {
+  padding: clamp(2.75rem, 6vw, 4.5rem) 0 clamp(2rem, 4vw, 3rem);
+  border-bottom: 1px solid var(--nh-border);
+  background:
+    radial-gradient(90% 120% at 50% -20%, rgb(18 160 143 / 0.09), transparent 60%),
+    var(--nh-surface);
+}
+
+.eyebrow {
+  font-size: var(--nh-text-xs);
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.5rem;
+}
+
+.title {
+  font-size: var(--nh-text-4xl);
+  letter-spacing: -0.035em;
+  margin-bottom: 0.75rem;
+}
+
+.lead {
+  max-width: 46rem;
+  font-size: var(--nh-text-lg);
+  color: var(--nh-text-muted);
+  margin: 0;
+}
+
+.sectionTitle {
+  font-size: var(--nh-text-2xl);
+  letter-spacing: -0.03em;
+  margin: clamp(2.5rem, 5vw, 3.5rem) 0 0.5rem;
+}
+
+.sectionLead {
+  color: var(--nh-text-muted);
+  max-width: 44rem;
+  margin-bottom: 1.25rem;
+}
+
+/* ==========================================================================
+   Cheat sheet switcher
+   ========================================================================== */
+
+.switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.switcherButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-raised);
+  color: var(--nh-text-muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 180ms var(--nh-ease);
+}
+
+.switcherButton code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: var(--nh-text-sm);
+  font-weight: 600;
+  color: inherit;
+}
+
+.switcherButton span {
+  font-size: var(--nh-text-xs);
+  font-weight: 700;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--nh-surface-inset);
+  color: var(--nh-text-subtle);
+}
+
+.switcherButton:hover {
+  border-color: var(--nh-border-strong);
+  color: var(--nh-text);
+  transform: translateY(-1px);
+}
+
+.switcherActive,
+.switcherActive:hover {
+  border-color: var(--ifm-color-primary);
+  background: var(--nh-surface-raised);
+  color: var(--ifm-color-primary);
+  box-shadow: var(--nh-ring);
+}
+
+/* ==========================================================================
+   Tool directory
+   ========================================================================== */
+
+.directory {
+  margin-top: 1rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--nh-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--nh-text-muted);
+  font-family: inherit;
+  font-size: var(--nh-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 160ms var(--nh-ease);
+}
+
+.filter:hover {
+  border-color: var(--nh-border-strong);
+  color: var(--nh-text);
+}
+
+.filterActive,
+.filterActive:hover {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #04211e;
+}
+
+.toolGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  gap: 1.1rem;
+}
+
+.tool {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-raised);
+  box-shadow: var(--nh-shadow-sm);
+  transition:
+    transform var(--nh-duration) var(--nh-ease),
+    box-shadow var(--nh-duration) var(--nh-ease),
+    border-color var(--nh-duration) var(--nh-ease);
+}
+
+.tool:hover {
+  transform: translateY(-3px);
+  border-color: var(--ifm-color-primary);
+  box-shadow: var(--nh-shadow-lg);
+}
+
+.toolHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.toolName {
+  font-family: var(--nh-font-display);
+  font-size: var(--nh-text-lg);
+  margin: 0;
+}
+
+.toolName a {
+  color: var(--ifm-heading-color);
+  text-decoration: none;
+}
+
+.toolName a:hover {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.toolCategory {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nh-text-subtle);
+  border: 1px solid var(--nh-border);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+
+.toolTagline {
+  font-size: var(--nh-text-sm);
+  font-weight: 600;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.6rem;
+}
+
+.toolDetail {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--nh-text-muted);
+  margin-bottom: 1rem;
+}
+
+.toolFoot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--nh-border);
+}
+
+.toolInstall {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  background: var(--nh-surface-inset);
+  border: 1px solid var(--nh-border);
+  color: var(--nh-text-muted);
+  scrollbar-width: none;
+}
+
+.toolInstall::-webkit-scrollbar {
+  display: none;
+}
+
+.toolLicense {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  color: var(--nh-text-subtle);
+}
