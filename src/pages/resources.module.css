@@ -1,0 +1,158 @@
+/* ==========================================================================
+   Documentation link groups
+   ========================================================================== */
+
+.docGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
+  gap: 1.1rem;
+}
+
+.docGroup {
+  padding: 1.4rem;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-raised);
+  box-shadow: var(--nh-shadow-sm);
+}
+
+.docGroupTitle {
+  font-family: var(--nh-font-display);
+  font-size: var(--nh-text-lg);
+  margin-bottom: 0.35rem;
+}
+
+.docGroupBlurb {
+  font-size: var(--nh-text-sm);
+  color: var(--nh-text-subtle);
+  margin-bottom: 1.1rem;
+}
+
+.docList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.docList li + li {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--nh-border);
+}
+
+.docLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ifm-heading-color);
+  text-decoration: none;
+}
+
+.docLink:hover {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.docLink svg {
+  opacity: 0.45;
+  transition: transform 180ms var(--nh-ease), opacity 180ms var(--nh-ease);
+}
+
+.docLink:hover svg {
+  opacity: 1;
+  transform: translate(2px, -2px);
+}
+
+.docNote {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--nh-text-muted);
+}
+
+/* ==========================================================================
+   Repositories
+   ========================================================================== */
+
+.repoList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 23rem), 1fr));
+  gap: 1.1rem;
+}
+
+.repo {
+  padding: 1.35rem;
+  border: 1px solid var(--nh-border);
+  border-left: 3px solid var(--ifm-color-primary);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-raised);
+  transition:
+    transform var(--nh-duration) var(--nh-ease),
+    box-shadow var(--nh-duration) var(--nh-ease);
+}
+
+.repo:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--nh-shadow);
+}
+
+.repoHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.repoName {
+  font-family: var(--nh-font-mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  word-break: break-word;
+}
+
+.repoName a {
+  color: var(--ifm-heading-color);
+  text-decoration: none;
+}
+
+.repoName a:hover {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.repoLang {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--nh-text-subtle);
+  border: 1px solid var(--nh-border);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+}
+
+.repoWhy {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--nh-text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.repoStart {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--nh-text-subtle);
+  margin: 0;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--nh-border);
+}
+
+.repoStart strong {
+  color: var(--nh-text-muted);
+}
