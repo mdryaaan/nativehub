@@ -1,0 +1,161 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: start;
+}
+
+@media (max-width: 996px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.main > section + section {
+  margin-top: 0.5rem;
+}
+
+.prose {
+  font-size: 1.02rem;
+  line-height: 1.75;
+  color: var(--nh-text-muted);
+  max-width: 46rem;
+}
+
+.prose code {
+  font-size: 0.85em;
+}
+
+/* ==========================================================================
+   Principles
+   ========================================================================== */
+
+.principles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.principle {
+  padding: 1.2rem;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-raised);
+  transition: border-color var(--nh-duration) var(--nh-ease);
+}
+
+.principle:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.principle h3 {
+  font-family: var(--nh-font-display);
+  font-size: var(--nh-text-base);
+  margin-bottom: 0.4rem;
+}
+
+.principle p {
+  font-size: 0.9rem;
+  line-height: 1.62;
+  color: var(--nh-text-muted);
+  margin: 0;
+}
+
+/* ==========================================================================
+   Contributing list
+   ========================================================================== */
+
+.contribList {
+  padding-left: 1.1rem;
+  margin: 1.25rem 0 1.5rem;
+  max-width: 46rem;
+}
+
+.contribList li {
+  font-size: 0.96rem;
+  line-height: 1.7;
+  color: var(--nh-text-muted);
+}
+
+.contribList li + li {
+  margin-top: 0.55rem;
+}
+
+.contribList strong {
+  color: var(--nh-text);
+}
+
+/* ==========================================================================
+   Sidebar cards
+   ========================================================================== */
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: sticky;
+  top: calc(var(--ifm-navbar-height) + 1.5rem);
+}
+
+@media (max-width: 996px) {
+  .side {
+    position: static;
+  }
+}
+
+.card {
+  padding: 1.25rem;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius-lg);
+  background: var(--nh-surface-raised);
+  box-shadow: var(--nh-shadow-sm);
+}
+
+.cardTitle {
+  font-family: var(--nh-font-display);
+  font-size: var(--nh-text-xs);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--nh-text-subtle);
+  margin-bottom: 0.75rem;
+}
+
+.cardBody {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--nh-text-muted);
+  margin-bottom: 1rem;
+}
+
+.stack {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stack li + li {
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--nh-border);
+}
+
+.stackName {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--nh-text);
+}
+
+.stackRole {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--nh-text-subtle);
+  line-height: 1.45;
+}
+
+.feedLinks {
+  display: flex;
+  gap: 0.5rem;
+}
