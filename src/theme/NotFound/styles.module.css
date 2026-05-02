@@ -1,0 +1,144 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  min-height: 70vh;
+  padding: clamp(3rem, 8vw, 6rem) 0;
+  background:
+    radial-gradient(80% 90% at 50% 0%, rgb(18 160 143 / 0.09), transparent 62%),
+    var(--nh-surface);
+}
+
+.inner {
+  max-width: 46rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.terminal {
+  display: inline-block;
+  text-align: left;
+  margin: 0 0 2rem;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-raised);
+  box-shadow: var(--nh-shadow-sm);
+  font-family: var(--nh-font-mono);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--nh-text-muted);
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.prompt {
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  margin-right: 0.45rem;
+}
+
+.error {
+  color: #dc2626;
+}
+
+[data-theme='dark'] .error {
+  color: #fb7185;
+}
+
+.code {
+  font-family: var(--nh-font-display);
+  font-size: clamp(3.5rem, 12vw, 6rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  margin: 0 0 0.5rem;
+  background: linear-gradient(120deg, var(--nh-brand-400), var(--nh-brand-700));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+[data-theme='dark'] .code {
+  background: linear-gradient(120deg, #7be5d6, #12a08f);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.title {
+  font-size: var(--nh-text-3xl);
+  letter-spacing: -0.03em;
+  margin-bottom: 0.75rem;
+}
+
+.lead {
+  font-size: var(--nh-text-lg);
+  color: var(--nh-text-muted);
+  max-width: 38rem;
+  margin: 0 auto 2.25rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.card {
+  display: block;
+  padding: 0.9rem 1.05rem;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius);
+  background: var(--nh-surface-raised);
+  text-decoration: none;
+  transition:
+    transform var(--nh-duration) var(--nh-ease),
+    border-color var(--nh-duration) var(--nh-ease),
+    box-shadow var(--nh-duration) var(--nh-ease);
+}
+
+.card:hover {
+  text-decoration: none;
+  transform: translateY(-2px);
+  border-color: var(--ifm-color-primary);
+  box-shadow: var(--nh-shadow);
+}
+
+.cardLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-family: var(--nh-font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ifm-heading-color);
+}
+
+.card:hover .cardLabel {
+  color: var(--ifm-color-primary);
+}
+
+.cardLabel svg {
+  opacity: 0.4;
+  transition: transform var(--nh-duration) var(--nh-ease), opacity var(--nh-duration) var(--nh-ease);
+}
+
+.card:hover .cardLabel svg {
+  opacity: 1;
+  transform: translateX(3px);
+}
+
+.cardHint {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--nh-text-subtle);
+  line-height: 1.5;
+}
+
+.report {
+  margin: 2.25rem 0 0;
+  font-size: var(--nh-text-sm);
+  color: var(--nh-text-subtle);
+}
