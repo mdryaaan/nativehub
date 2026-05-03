@@ -3,6 +3,7 @@ import FeatureCard from '@site/src/components/FeatureCard';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import { usePluginData } from '@docusaurus/useGlobalData';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import BlogPostCard from '@site/src/components/BlogPostCard';
 import type { ReactNode } from 'react';
 
@@ -290,9 +291,11 @@ function Newsletter(): ReactNode {
             tracking, no list to unsubscribe from.
           </p>
           <div className={styles.ctaActions}>
-            <Link className="button button--primary button--lg" to="/blog/rss.xml">
+            {/* Feeds are emitted after the broken-link check runs, so they are
+                plain anchors rather than <Link> to keep the checker happy. */}
+            <a className="button button--primary button--lg" href={useBaseUrl('/blog/rss.xml')}>
               Subscribe via RSS
-            </Link>
+            </a>
             <Link
               className="button button--secondary button--lg"
               to="https://github.com/mdryaan/nativehub"
@@ -301,7 +304,7 @@ function Newsletter(): ReactNode {
             </Link>
           </div>
           <p className={styles.ctaNote}>
-            Prefer Atom? <Link to="/blog/atom.xml">Use the Atom feed</Link> instead.
+            Prefer Atom? <a href={useBaseUrl('/blog/atom.xml')}>Use the Atom feed</a> instead.
           </p>
         </div>
       </div>

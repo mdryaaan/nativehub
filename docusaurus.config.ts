@@ -78,7 +78,7 @@ const config: Config = {
 
   future: {
     v4: true,
-    experimental_faster: true,
+    faster: true,
   },
 
   url: `https://${organizationName}.github.io`,
@@ -91,7 +91,6 @@ const config: Config = {
 
   onBrokenLinks: 'throw',
   onBrokenAnchors: 'throw',
-  onBrokenMarkdownLinks: 'throw',
   onDuplicateRoutes: 'throw',
 
   i18n: {
@@ -101,6 +100,10 @@ const config: Config = {
 
   markdown: {
     mermaid: false,
+    hooks: {
+      onBrokenMarkdownLinks: 'throw',
+      onBrokenMarkdownImages: 'throw',
+    },
   },
 
   headTags: [

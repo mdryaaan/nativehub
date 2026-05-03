@@ -26,14 +26,20 @@ function FooterItem({ item }: { item: FooterLink }): ReactNode {
     return null;
   }
 
+  // `href` in the footer config means "a raw URL" — including generated assets
+  // such as the feeds, which do not exist yet when the link checker runs — so
+  // those render as a plain anchor rather than a routed <Link>.
   return (
     <li>
-      <Link
-        className={styles.link}
-        {...(item.href ? { href: item.href } : { to: toUrl })}
-      >
-        {item.label}
-      </Link>
+      {item.href ? (
+        <a className={styles.link} href={item.href}>
+          {item.label}
+        </a>
+      ) : (
+        <Link className={styles.link} to={toUrl}>
+          {item.label}
+        </Link>
+      )}
     </li>
   );
 }
@@ -81,7 +87,7 @@ export default function Footer(): ReactNode {
                 No newsletter and no tracking — just a feed. Point any reader at it.
               </p>
               <div className={styles.feedActions}>
-                <Link className={styles.feedButton} to="/blog/rss.xml">
+                <a className={styles.feedButton} href={useBaseUrl('/blog/rss.xml')}>
                   <svg
                     aria-hidden="true"
                     width="14"
@@ -94,10 +100,10 @@ export default function Footer(): ReactNode {
                     <path d="M4 10.5A9.5 9.5 0 0 1 13.5 20h-3A6.5 6.5 0 0 0 4 13.5Z" />
                   </svg>
                   RSS
-                </Link>
-                <Link className={styles.feedButton} to="/blog/atom.xml">
+                </a>
+                <a className={styles.feedButton} href={useBaseUrl('/blog/atom.xml')}>
                   Atom
-                </Link>
+                </a>
                 <Link
                   className={styles.feedButton}
                   to={`https://github.com/${siteConfig.organizationName}/${siteConfig.projectName}`}

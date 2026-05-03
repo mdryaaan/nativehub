@@ -1,5 +1,6 @@
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import type { ReactNode } from 'react';
 
 import ThemeToggle from '@site/src/components/ThemeToggle';
@@ -173,12 +174,12 @@ export default function About(): ReactNode {
                 No newsletter, no tracking. Point any feed reader at the blog.
               </p>
               <div className={local.feedLinks}>
-                <Link className="button button--secondary button--sm" to="/blog/rss.xml">
+                <a className="button button--secondary button--sm" href={useBaseUrl('/blog/rss.xml')}>
                   RSS
-                </Link>
-                <Link className="button button--secondary button--sm" to="/blog/atom.xml">
+                </a>
+                <a className="button button--secondary button--sm" href={useBaseUrl('/blog/atom.xml')}>
                   Atom
-                </Link>
+                </a>
               </div>
             </div>
           </aside>
