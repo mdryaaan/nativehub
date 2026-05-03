@@ -47,7 +47,7 @@ type: application
 version: 0.1.0
 
 # The version of the application this chart deploys by default.
-appVersion: "1.27.3"
+appVersion: '1.27.3'
 
 keywords: [web, http, nginx]
 home: https://github.com/mdryaan/nativehub
@@ -65,11 +65,11 @@ replicaCount: 2
 
 image:
   repository: nginxinc/nginx-unprivileged
-  tag: ""              # defaults to .Chart.AppVersion when empty
+  tag: '' # defaults to .Chart.AppVersion when empty
   pullPolicy: IfNotPresent
 
-nameOverride: ""
-fullnameOverride: ""
+nameOverride: ''
+fullnameOverride: ''
 
 service:
   type: ClusterIP
@@ -92,7 +92,7 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   capabilities:
-    drop: ["ALL"]
+    drop: ['ALL']
 
 ingress:
   enabled: false
@@ -100,7 +100,7 @@ ingress:
   host: webapp.example.com
   tls:
     enabled: false
-    secretName: ""
+    secretName: ''
 
 autoscaling:
   enabled: false
@@ -162,8 +162,8 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 
 <CalloutBox variant="warning" title="Never put a version in selectorLabels">
   `spec.selector` is immutable after a Deployment is created. If your selector includes
-  `app.kubernetes.io/version`, the first `helm upgrade` that changes `appVersion` fails with
-  `field is immutable` and the release is stuck. Keep selectors to name and instance only.
+  `app.kubernetes.io/version`, the first `helm upgrade` that changes `appVersion` fails with `field
+  is immutable` and the release is stuck. Keep selectors to name and instance only.
 </CalloutBox>
 
 ## 5. Deployment template
@@ -391,7 +391,8 @@ Check the rollout:
         helm get manifest demo -n demo
       `,
     },
-  ]}
+
+]}
 />
 
 ## 10. Environment overlays
@@ -478,13 +479,13 @@ helm install demo oci://ghcr.io/OWNER/charts/webapp --version 0.1.0
 
 ## Common mistakes
 
-| Symptom | Cause |
-| --- | --- |
-| `error converting YAML to JSON: did not find expected key` | Wrong indentation from `indent` where `nindent` was needed |
-| `field is immutable` on upgrade | A version label leaked into `spec.selector` |
-| Values silently ignored | The key is nested under the wrong parent — check `helm get values --all` |
-| `--set image.tag=1.10` produces `:1.1` | Numeric coercion; use `--set-string` |
-| Release stuck `pending-upgrade` | A previous upgrade was interrupted; `helm rollback` to the last good revision |
+| Symptom                                                    | Cause                                                                         |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `error converting YAML to JSON: did not find expected key` | Wrong indentation from `indent` where `nindent` was needed                    |
+| `field is immutable` on upgrade                            | A version label leaked into `spec.selector`                                   |
+| Values silently ignored                                    | The key is nested under the wrong parent — check `helm get values --all`      |
+| `--set image.tag=1.10` produces `:1.1`                     | Numeric coercion; use `--set-string`                                          |
+| Release stuck `pending-upgrade`                            | A previous upgrade was interrupted; `helm rollback` to the last good revision |
 
 ## Next steps
 

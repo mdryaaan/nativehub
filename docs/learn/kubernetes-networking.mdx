@@ -43,22 +43,22 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    app: web        # matches Pod labels, not Deployment labels
+    app: web # matches Pod labels, not Deployment labels
   ports:
     - name: http
-      port: 80        # the port the Service listens on
-      targetPort: 8080  # the port on the Pod
+      port: 80 # the port the Service listens on
+      targetPort: 8080 # the port on the Pod
       protocol: TCP
 ```
 
 ### Service types
 
-| Type | What you get | Reachable from |
-| --- | --- | --- |
-| **ClusterIP** (default) | A virtual IP from the service CIDR | Inside the cluster only |
-| **NodePort** | ClusterIP **plus** a port (30000–32767 by default) opened on *every* node | Outside, via `<any-node-ip>:<nodePort>` |
-| **LoadBalancer** | NodePort **plus** a cloud load balancer provisioned by the cloud controller | The internet, via the LB's address |
-| **ExternalName** | A CNAME record only — no proxying, no selector | Inside the cluster, resolves elsewhere |
+| Type                    | What you get                                                                | Reachable from                          |
+| ----------------------- | --------------------------------------------------------------------------- | --------------------------------------- |
+| **ClusterIP** (default) | A virtual IP from the service CIDR                                          | Inside the cluster only                 |
+| **NodePort**            | ClusterIP **plus** a port (30000–32767 by default) opened on _every_ node   | Outside, via `<any-node-ip>:<nodePort>` |
+| **LoadBalancer**        | NodePort **plus** a cloud load balancer provisioned by the cloud controller | The internet, via the LB's address      |
+| **ExternalName**        | A CNAME record only — no proxying, no selector                              | Inside the cluster, resolves elsewhere  |
 
 The types are cumulative. A `LoadBalancer` Service still has a NodePort and still has a ClusterIP;
 the cloud load balancer simply forwards to the NodePort on each node.
@@ -80,7 +80,7 @@ virtual address that exists only as a set of rules:
 3. In **IPVS mode**, it programs kernel IPVS virtual servers instead, which scale better past a few
    thousand Services and support real balancing algorithms (`rr`, `lc`, `sh`).
 
-The rewrite happens in the kernel on the *sending* node. There is no proxy process in the data path
+The rewrite happens in the kernel on the _sending_ node. There is no proxy process in the data path
 — kube-proxy only maintains rules.
 
 ```bash
@@ -116,10 +116,10 @@ The fully qualified form of a Service record is:
 
 Thanks to the `search` list, a Pod in `prod` can use any of these:
 
-| Query | Resolves to |
-| --- | --- |
-| `web` | `web` in the **same** namespace |
-| `web.prod` | `web` in the `prod` namespace |
+| Query                        | Resolves to                                |
+| ---------------------------- | ------------------------------------------ |
+| `web`                        | `web` in the **same** namespace            |
+| `web.prod`                   | `web` in the `prod` namespace              |
 | `web.prod.svc.cluster.local` | Fully qualified — no search-path expansion |
 
 <CalloutBox variant="warning" title="ndots:5 and the trailing dot">
@@ -268,7 +268,8 @@ Three rules to internalise:
         kubectl describe networkpolicy db-allow-api -n prod
       `,
     },
-  ]}
+
+]}
 />
 
 ## What to read next

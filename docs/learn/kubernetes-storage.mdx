@@ -16,11 +16,11 @@ different ways.
 
 ## Three levels of persistence
 
-| Level | Lifetime | Typical use |
-| --- | --- | --- |
-| Container filesystem | Dies on container restart | Scratch space you do not care about |
-| **Volume** (`emptyDir`, `configMap`, `secret`, `projected`) | Dies with the **Pod** | Sharing files between containers in a Pod, injecting config |
-| **PersistentVolume** via a **PVC** | Independent of any Pod | Databases, uploads, anything that must survive rescheduling |
+| Level                                                       | Lifetime                  | Typical use                                                 |
+| ----------------------------------------------------------- | ------------------------- | ----------------------------------------------------------- |
+| Container filesystem                                        | Dies on container restart | Scratch space you do not care about                         |
+| **Volume** (`emptyDir`, `configMap`, `secret`, `projected`) | Dies with the **Pod**     | Sharing files between containers in a Pod, injecting config |
+| **PersistentVolume** via a **PVC**                          | Independent of any Pod    | Databases, uploads, anything that must survive rescheduling |
 
 ### Pod-scoped volumes
 
@@ -42,7 +42,7 @@ spec:
     - name: sidecar
       image: uploader:1.0
       volumeMounts:
-        - name: cache          # same volume, both containers see the same files
+        - name: cache # same volume, both containers see the same files
           mountPath: /data
   volumes:
     - name: cache
@@ -54,7 +54,7 @@ spec:
 ```
 
 `emptyDir` is created empty when the Pod is assigned to a node and deleted when the Pod is removed
-from that node. Container *restarts* do not clear it — only Pod deletion does. Setting
+from that node. Container _restarts_ do not clear it — only Pod deletion does. Setting
 `emptyDir.medium: Memory` backs it with tmpfs, which is fast but counts against the container's
 memory limit.
 
@@ -70,7 +70,7 @@ The split exists to separate concerns:
 
 - A **PersistentVolume (PV)** is a piece of storage in the cluster — a cloud disk, an NFS export, a
   local SSD. It is a cluster-scoped resource, usually created by a provisioner rather than by hand.
-- A **PersistentVolumeClaim (PVC)** is a namespaced *request* for storage: "I need 20 GiB that I can
+- A **PersistentVolumeClaim (PVC)** is a namespaced _request_ for storage: "I need 20 GiB that I can
   mount read-write from one node." Pods reference the claim, never the volume.
 
 Kubernetes binds a PVC to a suitable PV. With **dynamic provisioning** — the normal case today — no
@@ -100,7 +100,7 @@ spec:
   selector:
     matchLabels: { app: db }
   strategy:
-    type: Recreate    # RWO volumes cannot be attached to two Pods at once
+    type: Recreate # RWO volumes cannot be attached to two Pods at once
   template:
     metadata:
       labels: { app: db }
@@ -126,8 +126,8 @@ spec:
 ```
 
 <CalloutBox variant="warning" title="RollingUpdate plus ReadWriteOnce equals deadlock">
-  The default rolling strategy starts the new Pod before terminating the old one. With an RWO
-  volume already attached to the old Pod's node, the new Pod sits in `ContainerCreating` with a
+  The default rolling strategy starts the new Pod before terminating the old one. With an RWO volume
+  already attached to the old Pod's node, the new Pod sits in `ContainerCreating` with a
   `FailedAttachVolume` event forever. Use `strategy: Recreate` for single-replica stateful
   Deployments — or better, a StatefulSet.
 </CalloutBox>
@@ -136,12 +136,12 @@ spec:
 
 Access modes describe how many **nodes** may mount the volume, not how many Pods.
 
-| Mode | Short | Meaning |
-| --- | --- | --- |
-| `ReadWriteOnce` | RWO | Read-write by a single **node**. Multiple Pods on that same node can share it. |
-| `ReadOnlyMany` | ROX | Read-only by many nodes |
-| `ReadWriteMany` | RWX | Read-write by many nodes |
-| `ReadWriteOncePod` | RWOP | Read-write by exactly one **Pod** in the whole cluster |
+| Mode               | Short | Meaning                                                                        |
+| ------------------ | ----- | ------------------------------------------------------------------------------ |
+| `ReadWriteOnce`    | RWO   | Read-write by a single **node**. Multiple Pods on that same node can share it. |
+| `ReadOnlyMany`     | ROX   | Read-only by many nodes                                                        |
+| `ReadWriteMany`    | RWX   | Read-write by many nodes                                                       |
+| `ReadWriteOncePod` | RWOP  | Read-write by exactly one **Pod** in the whole cluster                         |
 
 Cloud block storage (EBS, GCE PD, Azure Disk) is RWO only. RWX requires a shared filesystem: NFS,
 CephFS, Amazon EFS, Azure Files. Asking for RWX from a block-storage StorageClass leaves the PVC
@@ -160,9 +160,9 @@ metadata:
 provisioner: ebs.csi.aws.com
 parameters:
   type: gp3
-  iops: "5000"
-  throughput: "250"
-  encrypted: "true"
+  iops: '5000'
+  throughput: '250'
+  encrypted: 'true'
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 volumeBindingMode: WaitForFirstConsumer
@@ -185,7 +185,7 @@ volumeBindingMode: WaitForFirstConsumer
 
 ## StatefulSets and volumeClaimTemplates
 
-A Deployment's Pods all reference the *same* PVC. A StatefulSet gives each replica its own, created
+A Deployment's Pods all reference the _same_ PVC. A StatefulSet gives each replica its own, created
 automatically from a template:
 
 ```yaml title="statefulset.yaml"
@@ -194,7 +194,7 @@ kind: StatefulSet
 metadata:
   name: db
 spec:
-  serviceName: db          # must be a headless Service
+  serviceName: db # must be a headless Service
   replicas: 3
   selector:
     matchLabels: { app: db }

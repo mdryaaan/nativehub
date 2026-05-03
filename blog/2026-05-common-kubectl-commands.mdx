@@ -218,28 +218,116 @@ availability guarantees.
   title="The commands worth committing to memory"
   searchable
   rows={[
-    { group: 'Inspect', command: 'kubectl get pods -o wide', description: 'Pods with node and IP columns' },
-    { group: 'Inspect', command: 'kubectl get all -n <ns>', description: 'Common resource kinds in a namespace' },
-    { group: 'Inspect', command: 'kubectl describe pod <pod>', description: 'Full state plus the events that explain it' },
-    { group: 'Inspect', command: 'kubectl explain <kind>.<field>', description: 'Schema documentation, offline' },
-    { group: 'Inspect', command: 'kubectl api-resources', description: 'Every kind the cluster knows, with short names' },
-    { group: 'Debug', command: 'kubectl logs <pod> --previous', description: 'Logs from the container that crashed' },
-    { group: 'Debug', command: 'kubectl logs -l app=web --prefix -f', description: 'Follow logs from every matching Pod' },
-    { group: 'Debug', command: 'kubectl exec -it <pod> -- sh', description: 'Interactive shell in a container' },
-    { group: 'Debug', command: 'kubectl debug -it <pod> --image=nicolaka/netshoot --target=<c>', description: 'Ephemeral debug container sharing the Pod namespaces' },
-    { group: 'Debug', command: 'kubectl get events --sort-by=.lastTimestamp', description: 'Cluster events in chronological order' },
-    { group: 'Debug', command: 'kubectl top pod --containers', description: 'Live CPU and memory per container' },
-    { group: 'Change', command: 'kubectl apply -f <file>', description: 'Create or update via three-way merge' },
-    { group: 'Change', command: 'kubectl diff -f <file>', description: 'Show what applying would change' },
-    { group: 'Change', command: 'kubectl scale deploy/<name> --replicas=5', description: 'Change replica count immediately' },
-    { group: 'Change', command: 'kubectl rollout restart deploy/<name>', description: 'Roll every Pod without a spec change' },
-    { group: 'Change', command: 'kubectl rollout undo deploy/<name>', description: 'Revert to the previous ReplicaSet' },
-    { group: 'Access', command: 'kubectl port-forward svc/<name> 8080:80', description: 'Tunnel a Service port to localhost' },
-    { group: 'Access', command: 'kubectl cp <pod>:/path ./local', description: 'Copy files out of a container' },
-    { group: 'Access', command: 'kubectl auth can-i <verb> <resource>', description: 'Check your own RBAC permissions' },
-    { group: 'Context', command: 'kubectl config get-contexts', description: 'List configured clusters' },
-    { group: 'Context', command: 'kubectl config use-context <name>', description: 'Switch cluster' },
-    { group: 'Context', command: 'kubectl config set-context --current --namespace=<ns>', description: 'Set the default namespace' },
+    {
+      group: 'Inspect',
+      command: 'kubectl get pods -o wide',
+      description: 'Pods with node and IP columns',
+    },
+    {
+      group: 'Inspect',
+      command: 'kubectl get all -n <ns>',
+      description: 'Common resource kinds in a namespace',
+    },
+    {
+      group: 'Inspect',
+      command: 'kubectl describe pod <pod>',
+      description: 'Full state plus the events that explain it',
+    },
+    {
+      group: 'Inspect',
+      command: 'kubectl explain <kind>.<field>',
+      description: 'Schema documentation, offline',
+    },
+    {
+      group: 'Inspect',
+      command: 'kubectl api-resources',
+      description: 'Every kind the cluster knows, with short names',
+    },
+    {
+      group: 'Debug',
+      command: 'kubectl logs <pod> --previous',
+      description: 'Logs from the container that crashed',
+    },
+    {
+      group: 'Debug',
+      command: 'kubectl logs -l app=web --prefix -f',
+      description: 'Follow logs from every matching Pod',
+    },
+    {
+      group: 'Debug',
+      command: 'kubectl exec -it <pod> -- sh',
+      description: 'Interactive shell in a container',
+    },
+    {
+      group: 'Debug',
+      command: 'kubectl debug -it <pod> --image=nicolaka/netshoot --target=<c>',
+      description: 'Ephemeral debug container sharing the Pod namespaces',
+    },
+    {
+      group: 'Debug',
+      command: 'kubectl get events --sort-by=.lastTimestamp',
+      description: 'Cluster events in chronological order',
+    },
+    {
+      group: 'Debug',
+      command: 'kubectl top pod --containers',
+      description: 'Live CPU and memory per container',
+    },
+    {
+      group: 'Change',
+      command: 'kubectl apply -f <file>',
+      description: 'Create or update via three-way merge',
+    },
+    {
+      group: 'Change',
+      command: 'kubectl diff -f <file>',
+      description: 'Show what applying would change',
+    },
+    {
+      group: 'Change',
+      command: 'kubectl scale deploy/<name> --replicas=5',
+      description: 'Change replica count immediately',
+    },
+    {
+      group: 'Change',
+      command: 'kubectl rollout restart deploy/<name>',
+      description: 'Roll every Pod without a spec change',
+    },
+    {
+      group: 'Change',
+      command: 'kubectl rollout undo deploy/<name>',
+      description: 'Revert to the previous ReplicaSet',
+    },
+    {
+      group: 'Access',
+      command: 'kubectl port-forward svc/<name> 8080:80',
+      description: 'Tunnel a Service port to localhost',
+    },
+    {
+      group: 'Access',
+      command: 'kubectl cp <pod>:/path ./local',
+      description: 'Copy files out of a container',
+    },
+    {
+      group: 'Access',
+      command: 'kubectl auth can-i <verb> <resource>',
+      description: 'Check your own RBAC permissions',
+    },
+    {
+      group: 'Context',
+      command: 'kubectl config get-contexts',
+      description: 'List configured clusters',
+    },
+    {
+      group: 'Context',
+      command: 'kubectl config use-context <name>',
+      description: 'Switch cluster',
+    },
+    {
+      group: 'Context',
+      command: 'kubectl config set-context --current --namespace=<ns>',
+      description: 'Set the default namespace',
+    },
   ]}
 />
 

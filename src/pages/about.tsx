@@ -60,18 +60,18 @@ export default function About(): ReactNode {
             <section>
               <h2 className={styles.sectionTitle}>Why it exists</h2>
               <p className={local.prose}>
-                There is no shortage of Kubernetes content. There is a shortage of content that is
-                simultaneously accurate, current, and honest about where the sharp edges are. Most
-                tutorials stop at <code>kubectl apply</code> and a green checkmark; most reference
-                documentation assumes you already know which page you need.
+                There is no shortage of Kubernetes content. There is a shortage of content that
+                is simultaneously accurate, current, and honest about where the sharp edges are.
+                Most tutorials stop at <code>kubectl apply</code> and a green checkmark; most
+                reference documentation assumes you already know which page you need.
               </p>
               <p className={local.prose}>
-                This site tries to sit in between. The <Link to="/docs/learn">Learn</Link> section
-                explains mechanisms — what a Service actually is, what a Deployment actually
-                manages, what <code>config.json</code> actually contains. The{' '}
+                This site tries to sit in between. The <Link to="/docs/learn">Learn</Link>{' '}
+                section explains mechanisms — what a Service actually is, what a Deployment
+                actually manages, what <code>config.json</code> actually contains. The{' '}
                 <Link to="/docs/guides">Guides</Link> section is task-shaped and end to end. The{' '}
-                <Link to="/tools">Tools</Link> and <Link to="/resources">Resources</Link> pages are
-                the things worth keeping close once you already know your way around.
+                <Link to="/tools">Tools</Link> and <Link to="/resources">Resources</Link> pages
+                are the things worth keeping close once you already know your way around.
               </p>
             </section>
 
@@ -90,14 +90,14 @@ export default function About(): ReactNode {
             <section>
               <h2 className={styles.sectionTitle}>Contributing</h2>
               <p className={local.prose}>
-                Corrections are the most valuable contribution. If something here is wrong,
-                out of date, or misleading, please open an issue — being wrong in public is only
+                Corrections are the most valuable contribution. If something here is wrong, out
+                of date, or misleading, please open an issue — being wrong in public is only
                 useful if it gets fixed.
               </p>
               <ul className={local.contribList}>
                 <li>
-                  <strong>Found an error?</strong> Every doc page has an “Edit this page” link at
-                  the bottom that takes you straight to the source file on GitHub.
+                  <strong>Found an error?</strong> Every doc page has an “Edit this page” link
+                  at the bottom that takes you straight to the source file on GitHub.
                 </li>
                 <li>
                   <strong>Want to add a page?</strong>{' '}
@@ -107,27 +107,27 @@ export default function About(): ReactNode {
                   covers the local setup, file conventions, and the PR checklist.
                 </li>
                 <li>
-                  <strong>Have a question?</strong> Open a GitHub Discussion rather than an issue,
-                  so the answer stays searchable for the next person.
+                  <strong>Have a question?</strong> Open a GitHub Discussion rather than an
+                  issue, so the answer stays searchable for the next person.
                 </li>
               </ul>
 
               <CalloutBox variant="info" title="Licensing">
-                All content and code in this repository is MIT licensed. Reuse it, adapt it, teach
-                from it — attribution is appreciated but not required.
+                All content and code in this repository is MIT licensed. Reuse it, adapt it,
+                teach from it — attribution is appreciated but not required.
               </CalloutBox>
             </section>
 
             <section>
               <h2 className={styles.sectionTitle}>Accessibility</h2>
               <p className={local.prose}>
-                Accessibility is treated as a build requirement rather than a nice-to-have. Every
-                page uses a single <code>h1</code> with a correctly nested heading hierarchy, all
-                interactive elements are keyboard reachable with a visible focus ring, decorative
-                graphics are marked <code>aria-hidden</code>, and body text meets WCAG AA contrast
-                in both colour themes. Animations respect{' '}
-                <code>prefers-reduced-motion</code>. If you hit something that does not work with
-                your assistive technology, that is a bug worth filing.
+                Accessibility is treated as a build requirement rather than a nice-to-have.
+                Every page uses a single <code>h1</code> with a correctly nested heading
+                hierarchy, all interactive elements are keyboard reachable with a visible focus
+                ring, decorative graphics are marked <code>aria-hidden</code>, and body text
+                meets WCAG AA contrast in both colour themes. Animations respect{' '}
+                <code>prefers-reduced-motion</code>. If you hit something that does not work
+                with your assistive technology, that is a bug worth filing.
               </p>
             </section>
           </div>
@@ -136,8 +136,8 @@ export default function About(): ReactNode {
             <div className={local.card}>
               <h2 className={local.cardTitle}>Maintainer</h2>
               <p className={local.cardBody}>
-                Built and maintained by <strong>Md Raiyan</strong>, who writes mostly Go and spends
-                more time reading controller source than is strictly reasonable.
+                Built and maintained by <strong>Md Raiyan</strong>, who writes mostly Go and
+                spends more time reading controller source than is strictly reasonable.
               </p>
               <Link
                 className="button button--primary button--block"
@@ -162,8 +162,8 @@ export default function About(): ReactNode {
             <div className={local.card}>
               <h2 className={local.cardTitle}>Appearance</h2>
               <p className={local.cardBody}>
-                Both themes are designed rather than generated. Your choice is stored locally and
-                applied before first paint, so it survives reloads without a flash.
+                Both themes are designed rather than generated. Your choice is stored locally
+                and applied before first paint, so it survives reloads without a flash.
               </p>
               <ThemeToggle />
             </div>
@@ -174,10 +174,16 @@ export default function About(): ReactNode {
                 No newsletter, no tracking. Point any feed reader at the blog.
               </p>
               <div className={local.feedLinks}>
-                <a className="button button--secondary button--sm" href={useBaseUrl('/blog/rss.xml')}>
+                <a
+                  className="button button--secondary button--sm"
+                  href={useBaseUrl('/blog/rss.xml')}
+                >
                   RSS
                 </a>
-                <a className="button button--secondary button--sm" href={useBaseUrl('/blog/atom.xml')}>
+                <a
+                  className="button button--secondary button--sm"
+                  href={useBaseUrl('/blog/atom.xml')}
+                >
                   Atom
                 </a>
               </div>

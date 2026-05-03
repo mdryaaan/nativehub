@@ -58,11 +58,11 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    app: web          # matches POD labels
+    app: web # matches POD labels
   ports:
     - name: http
-      port: 80        # the port the Service answers on
-      targetPort: 8080  # the port on the Pod
+      port: 80 # the port the Service answers on
+      targetPort: 8080 # the port on the Pod
 ```
 
 ```bash
@@ -93,12 +93,12 @@ Two consequences worth internalising:
 
 ## The four Service types
 
-| Type | What it adds | Reachable from |
-| --- | --- | --- |
-| **ClusterIP** | A virtual IP inside the cluster | Inside the cluster only |
-| **NodePort** | ClusterIP + a port on every node (30000–32767) | Outside, via `<node-ip>:<nodePort>` |
-| **LoadBalancer** | NodePort + a cloud load balancer | The internet |
-| **ExternalName** | A CNAME record only, no proxying | Inside the cluster, resolving elsewhere |
+| Type             | What it adds                                   | Reachable from                          |
+| ---------------- | ---------------------------------------------- | --------------------------------------- |
+| **ClusterIP**    | A virtual IP inside the cluster                | Inside the cluster only                 |
+| **NodePort**     | ClusterIP + a port on every node (30000–32767) | Outside, via `<node-ip>:<nodePort>`     |
+| **LoadBalancer** | NodePort + a cloud load balancer               | The internet                            |
+| **ExternalName** | A CNAME record only, no proxying               | Inside the cluster, resolving elsewhere |
 
 They are **cumulative**. A LoadBalancer Service still has a NodePort and still has a ClusterIP; the
 cloud load balancer simply forwards to that NodePort on each node.
@@ -116,7 +116,7 @@ spec:
   ports:
     - port: 80
       targetPort: 8080
-      nodePort: 30080   # optional; auto-assigned from 30000-32767 if omitted
+      nodePort: 30080 # optional; auto-assigned from 30000-32767 if omitted
 ```
 
 Every node now listens on 30080 and forwards to the Service, whether or not that node runs a
@@ -196,11 +196,11 @@ options ndots:5
 The canonical record is `<service>.<namespace>.svc.cluster.local`, and the search path lets you
 abbreviate:
 
-| From a Pod in `frontend`, this query… | resolves to |
-| --- | --- |
-| `web` | the `web` Service in `frontend` |
-| `web.backend` | the `web` Service in `backend` |
-| `web.backend.svc.cluster.local` | the same, fully qualified — no search expansion |
+| From a Pod in `frontend`, this query… | resolves to                                     |
+| ------------------------------------- | ----------------------------------------------- |
+| `web`                                 | the `web` Service in `frontend`                 |
+| `web.backend`                         | the `web` Service in `backend`                  |
+| `web.backend.svc.cluster.local`       | the same, fully qualified — no search expansion |
 
 Cross-namespace calls need at least `<service>.<namespace>`. A bare `web` will only ever find a
 Service in the caller's own namespace.
@@ -208,7 +208,7 @@ Service in the caller's own namespace.
 <div style={{ marginTop: '1.25rem' }} />
 
 **The `ndots:5` gotcha.** Any name with fewer than five dots is tried against every search suffix
-*before* being tried as written. Looking up `api.github.com` (two dots) therefore issues
+_before_ being tried as written. Looking up `api.github.com` (two dots) therefore issues
 `api.github.com.frontend.svc.cluster.local`, then `...svc.cluster.local`, then `...cluster.local`,
 and only then the real query — four wasted round trips per lookup. For hot external calls, use a
 trailing dot (`api.github.com.`) to force an absolute lookup, or set a lower `ndots` in the Pod's

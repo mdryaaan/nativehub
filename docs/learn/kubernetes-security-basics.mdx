@@ -21,7 +21,7 @@ Every request to the API server passes through three stages:
 
 1. **Authentication** — who are you? Client certificates, bearer tokens, or an OIDC provider. Note
    that Kubernetes has **no User object**: users are external identities the API server trusts.
-   ServiceAccounts, by contrast, *are* real objects in the cluster.
+   ServiceAccounts, by contrast, _are_ real objects in the cluster.
 2. **Authorisation** — may you do this? Almost always RBAC.
 3. **Admission control** — should this specific object be allowed, mutated, or rejected? Pod
    Security Admission, ResourceQuota, and any ValidatingAdmissionPolicy or webhook run here.
@@ -30,9 +30,9 @@ Every request to the API server passes through three stages:
 
 Four object types, in two pairs:
 
-| Scope | Permissions | Binding |
-| --- | --- | --- |
-| Namespaced | `Role` | `RoleBinding` |
+| Scope        | Permissions   | Binding              |
+| ------------ | ------------- | -------------------- |
+| Namespaced   | `Role`        | `RoleBinding`        |
 | Cluster-wide | `ClusterRole` | `ClusterRoleBinding` |
 
 A `RoleBinding` may reference a `ClusterRole` — a common and useful pattern that grants the
@@ -45,12 +45,12 @@ metadata:
   namespace: prod
   name: deploy-reader
 rules:
-  - apiGroups: ["apps"]
-    resources: ["deployments", "replicasets"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]              # "" is the core API group
-    resources: ["pods", "pods/log"]
-    verbs: ["get", "list", "watch"]
+  - apiGroups: ['apps']
+    resources: ['deployments', 'replicasets']
+    verbs: ['get', 'list', 'watch']
+  - apiGroups: [''] # "" is the core API group
+    resources: ['pods', 'pods/log']
+    verbs: ['get', 'list', 'watch']
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -121,25 +121,25 @@ kind: Pod
 metadata:
   name: hardened
 spec:
-  securityContext:              # Pod-level: applies to all containers
+  securityContext: # Pod-level: applies to all containers
     runAsNonRoot: true
     runAsUser: 10001
     runAsGroup: 10001
-    fsGroup: 10001              # chowns mounted volumes to this GID
+    fsGroup: 10001 # chowns mounted volumes to this GID
     seccompProfile:
       type: RuntimeDefault
   containers:
     - name: app
       image: myapp:1.0
-      securityContext:          # container-level: overrides the Pod level
+      securityContext: # container-level: overrides the Pod level
         allowPrivilegeEscalation: false
         readOnlyRootFilesystem: true
         privileged: false
         capabilities:
-          drop: ["ALL"]
+          drop: ['ALL']
       volumeMounts:
         - name: tmp
-          mountPath: /tmp       # writable scratch, since root fs is read-only
+          mountPath: /tmp # writable scratch, since root fs is read-only
   volumes:
     - name: tmp
       emptyDir: {}
@@ -147,19 +147,19 @@ spec:
 
 What each setting buys you:
 
-| Setting | Effect |
-| --- | --- |
-| `runAsNonRoot: true` | The kubelet refuses to start the container if the image's user is UID 0 |
-| `allowPrivilegeEscalation: false` | Sets the `no_new_privs` bit — setuid binaries cannot gain privileges |
-| `readOnlyRootFilesystem: true` | The image's filesystem is mounted read-only; attackers cannot drop tools into it |
-| `capabilities.drop: ["ALL"]` | Removes every Linux capability, including `CAP_NET_RAW` and `CAP_CHOWN` |
-| `seccompProfile: RuntimeDefault` | Applies the container runtime's syscall filter, blocking hundreds of rarely-needed syscalls |
-| `privileged: true` | **Disables almost all isolation.** Effectively root on the node. Avoid outside of CNI and CSI drivers. |
+| Setting                           | Effect                                                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `runAsNonRoot: true`              | The kubelet refuses to start the container if the image's user is UID 0                                |
+| `allowPrivilegeEscalation: false` | Sets the `no_new_privs` bit — setuid binaries cannot gain privileges                                   |
+| `readOnlyRootFilesystem: true`    | The image's filesystem is mounted read-only; attackers cannot drop tools into it                       |
+| `capabilities.drop: ["ALL"]`      | Removes every Linux capability, including `CAP_NET_RAW` and `CAP_CHOWN`                                |
+| `seccompProfile: RuntimeDefault`  | Applies the container runtime's syscall filter, blocking hundreds of rarely-needed syscalls            |
+| `privileged: true`                | **Disables almost all isolation.** Effectively root on the node. Avoid outside of CNI and CSI drivers. |
 
 <CalloutBox variant="tip" title="Binding to port 80 as non-root">
   A non-root process cannot bind to ports below 1024 without `CAP_NET_BIND_SERVICE`. The clean fix
-  is to listen on 8080 in the container and have the Service map `port: 80` to
-  `targetPort: 8080` — no capability needed.
+  is to listen on 8080 in the container and have the Service map `port: 80` to `targetPort: 8080` —
+  no capability needed.
 </CalloutBox>
 
 ## Pod Security Admission
@@ -167,11 +167,11 @@ What each setting buys you:
 PSA is the built-in replacement for the removed PodSecurityPolicy. It is a namespace-level label
 that enforces one of three profiles at admission time.
 
-| Profile | Allows | Use for |
-| --- | --- | --- |
-| `privileged` | Everything | System namespaces running CNI/CSI |
-| `baseline` | Blocks known escalations: hostNetwork, hostPID, privileged, most hostPath | Legacy workloads being migrated |
-| `restricted` | Enforces non-root, dropped capabilities, seccomp, no privilege escalation | Everything you write yourself |
+| Profile      | Allows                                                                    | Use for                           |
+| ------------ | ------------------------------------------------------------------------- | --------------------------------- |
+| `privileged` | Everything                                                                | System namespaces running CNI/CSI |
+| `baseline`   | Blocks known escalations: hostNetwork, hostPID, privileged, most hostPath | Legacy workloads being migrated   |
+| `restricted` | Enforces non-root, dropped capabilities, seccomp, no privilege escalation | Everything you write yourself     |
 
 ```bash
 # Warn now, so you can see what would break
@@ -266,7 +266,8 @@ Three things to do about that:
                  | .metadata.namespace + "/" + .metadata.name'
       `,
     },
-  ]}
+
+]}
 />
 
 ## A starting checklist

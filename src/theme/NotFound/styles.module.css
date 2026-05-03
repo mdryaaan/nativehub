@@ -121,7 +121,9 @@
 
 .cardLabel svg {
   opacity: 0.4;
-  transition: transform var(--nh-duration) var(--nh-ease), opacity var(--nh-duration) var(--nh-ease);
+  transition:
+    transform var(--nh-duration) var(--nh-ease),
+    opacity var(--nh-duration) var(--nh-ease);
 }
 
 .card:hover .cardLabel svg {

@@ -74,8 +74,8 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write        # push to ghcr.io
-  id-token: write        # required for keyless cosign signing
+  packages: write # push to ghcr.io
+  id-token: write # required for keyless cosign signing
   attestations: write
 
 env:
@@ -136,55 +136,55 @@ stages too, which is what makes multi-stage builds fast.
 
 <CalloutBox variant="info" title="Why the digest output">
   `docker/build-push-action` exposes the pushed image's digest. Passing that digest to later jobs —
-  scanning, signing, deployment — guarantees every step operates on the exact bytes that were
-  built, even if someone repoints the tag in between.
+  scanning, signing, deployment — guarantees every step operates on the exact bytes that were built,
+  even if someone repoints the tag in between.
 </CalloutBox>
 
 ## Layer 3 — scan and sign
 
 ```yaml title=".github/workflows/build.yml (continued)"
-  verify:
-    needs: image
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      security-events: write
-    steps:
-      - name: Scan for vulnerabilities
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ github.repository }}@${{ needs.image.outputs.digest }}
-          format: sarif
-          output: trivy.sarif
-          severity: HIGH,CRITICAL
-          exit-code: '1'
-          ignore-unfixed: true
+verify:
+  needs: image
+  runs-on: ubuntu-latest
+  permissions:
+    contents: read
+    packages: write
+    id-token: write
+    security-events: write
+  steps:
+    - name: Scan for vulnerabilities
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ github.repository }}@${{ needs.image.outputs.digest }}
+        format: sarif
+        output: trivy.sarif
+        severity: HIGH,CRITICAL
+        exit-code: '1'
+        ignore-unfixed: true
 
-      - name: Upload results to code scanning
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy.sarif
+    - name: Upload results to code scanning
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy.sarif
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+    - name: Install cosign
+      uses: sigstore/cosign-installer@v3
 
-      - name: Sign the image (keyless)
-        run: |
-          cosign sign --yes \
-            "${REGISTRY}/${IMAGE}@${DIGEST}"
-        env:
-          REGISTRY: ${{ env.REGISTRY }}
-          IMAGE: ${{ github.repository }}
-          DIGEST: ${{ needs.image.outputs.digest }}
+    - name: Sign the image (keyless)
+      run: |
+        cosign sign --yes \
+          "${REGISTRY}/${IMAGE}@${DIGEST}"
+      env:
+        REGISTRY: ${{ env.REGISTRY }}
+        IMAGE: ${{ github.repository }}
+        DIGEST: ${{ needs.image.outputs.digest }}
 ```
 
 Keyless signing is the part worth understanding. There is no private key to store or rotate: cosign
 exchanges the workflow's OIDC token for a short-lived certificate from Fulcio, signs, and records
-the signature in the Rekor transparency log. Verification then asserts *which workflow in which
-repository* produced the image:
+the signature in the Rekor transparency log. Verification then asserts _which workflow in which
+repository_ produced the image:
 
 ```bash
 cosign verify ghcr.io/OWNER/demo@sha256:... \
@@ -292,7 +292,8 @@ There are two honest options, and they behave very differently.
         }
       `,
     },
-  ]}
+
+]}
 />
 
 <CalloutBox variant="danger" title="Never store a kubeconfig as a repository secret">
@@ -304,13 +305,13 @@ There are two honest options, and they behave very differently.
 
 ## Choosing between push and pull
 
-| | Push (kubectl from CI) | Pull (Argo CD / Flux) |
-| --- | --- | --- |
-| Cluster credentials in CI | Required (use OIDC) | None |
-| Drift detection | None | Continuous |
-| Rollback | Re-run an older workflow | `git revert` |
-| Works for private clusters | Needs network reach | Yes — the agent dials out |
-| Setup cost | Low | Higher |
+|                            | Push (kubectl from CI)   | Pull (Argo CD / Flux)     |
+| -------------------------- | ------------------------ | ------------------------- |
+| Cluster credentials in CI  | Required (use OIDC)      | None                      |
+| Drift detection            | None                     | Continuous                |
+| Rollback                   | Re-run an older workflow | `git revert`              |
+| Works for private clusters | Needs network reach      | Yes — the agent dials out |
+| Setup cost                 | Low                      | Higher                    |
 
 Push-based is fine for a single environment and a small team. Once you have more than a couple of
 clusters, the pull model's audit trail and drift correction pay for themselves quickly.

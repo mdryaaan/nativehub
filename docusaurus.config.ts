@@ -22,7 +22,7 @@ export interface LatestPost {
  * The blog plugin's own global data only carries titles and permalinks, so we
  * read the front matter directly to get descriptions, tags, and word counts.
  */
-async function latestPostsPlugin(context: LoadContext): Promise<Plugin<LatestPost[]>> {
+async function latestPostsPlugin(context: LoadContext): Promise<Plugin> {
   const blogDir = path.join(context.siteDir, 'blog');
 
   return {
@@ -39,7 +39,6 @@ async function latestPostsPlugin(context: LoadContext): Promise<Plugin<LatestPos
           const { frontMatter, content } = await DEFAULT_PARSE_FRONT_MATTER({
             filePath,
             fileContent,
-            defaultFrontMatter: {},
           });
           const fm = frontMatter as Record<string, unknown>;
 
@@ -62,7 +61,7 @@ async function latestPostsPlugin(context: LoadContext): Promise<Plugin<LatestPos
     },
 
     async contentLoaded({ content, actions }) {
-      actions.setGlobalData(content ?? []);
+      actions.setGlobalData((content as LatestPost[] | undefined) ?? []);
     },
   };
 }
@@ -175,10 +174,7 @@ const config: Config = {
       return {
         name: 'nativehub-tailwind',
         configurePostCss(postcssOptions) {
-          postcssOptions.plugins.push(
-            require('tailwindcss'),
-            require('autoprefixer'),
-          );
+          postcssOptions.plugins.push(require('tailwindcss'), require('autoprefixer'));
           return postcssOptions;
         },
       };

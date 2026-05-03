@@ -9,8 +9,8 @@ keywords: [pod, deployment, replicaset, kubernetes, rollout]
 image: /img/social-card.png
 ---
 
-Newcomers to Kubernetes almost always ask the same question in the same order: *what is a Pod, why
-would I not just create one, and what does a Deployment add?* The answer is a three-level chain of
+Newcomers to Kubernetes almost always ask the same question in the same order: _what is a Pod, why
+would I not just create one, and what does a Deployment add?_ The answer is a three-level chain of
 ownership, and once you can see it, most of Kubernetes' behaviour stops being surprising.
 
 {/* truncate */}
@@ -62,7 +62,7 @@ kubectl get pods
 # No resources found in default namespace.
 ```
 
-Nothing brought it back, because nothing *owns* it. A Pod is a record of "this container should run
+Nothing brought it back, because nothing _owns_ it. A Pod is a record of "this container should run
 on this node." When the Pod goes away — you deleted it, the node was drained, the node caught fire
 — that record is simply gone.
 
@@ -90,11 +90,11 @@ Pod  Pod  Pod
 
 Each level has one job:
 
-| Level | Responsibility |
-| --- | --- |
-| **Deployment** | Manages *versions*. Creates a new ReplicaSet per Pod template, and orchestrates the shift of replicas between them. |
-| **ReplicaSet** | Manages *count*. Keeps exactly N Pods matching one specific template alive. |
-| **Pod** | Runs the containers. |
+| Level          | Responsibility                                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Deployment** | Manages _versions_. Creates a new ReplicaSet per Pod template, and orchestrates the shift of replicas between them. |
+| **ReplicaSet** | Manages _count_. Keeps exactly N Pods matching one specific template alive.                                         |
+| **Pod**        | Runs the containers.                                                                                                |
 
 ```yaml title="deployment.yaml"
 apiVersion: apps/v1
@@ -106,16 +106,16 @@ spec:
   revisionHistoryLimit: 5
   selector:
     matchLabels:
-      app: web              # immutable after creation
+      app: web # immutable after creation
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1           # at most 4 Pods during a rollout
-      maxUnavailable: 0     # never fewer than 3 ready
+      maxSurge: 1 # at most 4 Pods during a rollout
+      maxUnavailable: 0 # never fewer than 3 ready
   template:
     metadata:
       labels:
-        app: web            # must satisfy spec.selector
+        app: web # must satisfy spec.selector
     spec:
       containers:
         - name: nginx
@@ -152,7 +152,7 @@ pod/web-7d4b9c6f85-hd7vw   1/1     Running   0
 
 The Pod name is not random: `web-7d4b9c6f85-2xk4l` is `<deployment>-<template-hash>-<random>`. That
 middle segment is a hash of the Pod template, and the ReplicaSet carries the same one. It is also
-injected as a label, `pod-template-hash`, which is how each ReplicaSet claims only *its* Pods
+injected as a label, `pod-template-hash`, which is how each ReplicaSet claims only _its_ Pods
 without the templates' selectors colliding.
 
 ```bash
@@ -169,7 +169,7 @@ kubectl get pods -l app=web
 ```
 
 A replacement appears within seconds. Nothing special-cased "a Pod died". The ReplicaSet controller
-runs the same loop it always runs: *desired 3, observed 2, create 1.* The identical loop is what
+runs the same loop it always runs: _desired 3, observed 2, create 1._ The identical loop is what
 recovers from a node failure — the node controller marks the Pods on a dead node as terminating, the
 count drops, and replacements are scheduled elsewhere.
 
@@ -219,12 +219,12 @@ immutable`.
 
 ## When a Deployment is the wrong choice
 
-| Controller | Use it when |
-| --- | --- |
-| **Deployment** | Stateless, interchangeable replicas. Web servers, APIs, workers. |
-| **StatefulSet** | Replicas need stable identity and their own storage. Databases, brokers, anything with a quorum. |
-| **DaemonSet** | Exactly one Pod per node. Log shippers, CNI agents, node exporters. |
-| **Job** / **CronJob** | Run to completion, once or on a schedule. Migrations, batch imports. |
+| Controller            | Use it when                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------ |
+| **Deployment**        | Stateless, interchangeable replicas. Web servers, APIs, workers.                                 |
+| **StatefulSet**       | Replicas need stable identity and their own storage. Databases, brokers, anything with a quorum. |
+| **DaemonSet**         | Exactly one Pod per node. Log shippers, CNI agents, node exporters.                              |
+| **Job** / **CronJob** | Run to completion, once or on a schedule. Migrations, batch imports.                             |
 
 A Deployment's Pods are deliberately anonymous — `web-7d4b9c6f85-2xk4l` means nothing, and Pod 2 is
 not distinguishable from Pod 3. When identity matters (`db-0` must always reattach the same disk),

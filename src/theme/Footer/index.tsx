@@ -54,6 +54,12 @@ export default function Footer(): ReactNode {
   const { footer } = useThemeConfig();
   const { siteConfig } = useDocusaurusContext();
 
+  // Hooks must run unconditionally, so these are resolved before the early
+  // return for sites that disable the footer entirely.
+  const logoUrl = useBaseUrl('img/logo.svg');
+  const rssUrl = useBaseUrl('/blog/rss.xml');
+  const atomUrl = useBaseUrl('/blog/atom.xml');
+
   if (!footer) {
     return null;
   }
@@ -67,13 +73,7 @@ export default function Footer(): ReactNode {
         <div className={styles.top}>
           <div className={styles.brand}>
             <Link to="/" className={styles.brandMark}>
-              <img
-                src={useBaseUrl('img/logo.svg')}
-                alt=""
-                width={30}
-                height={30}
-                loading="lazy"
-              />
+              <img src={logoUrl} alt="" width={30} height={30} loading="lazy" />
               <span>{siteConfig.title}</span>
             </Link>
             <p className={styles.brandBlurb}>
@@ -87,7 +87,7 @@ export default function Footer(): ReactNode {
                 No newsletter and no tracking — just a feed. Point any reader at it.
               </p>
               <div className={styles.feedActions}>
-                <a className={styles.feedButton} href={useBaseUrl('/blog/rss.xml')}>
+                <a className={styles.feedButton} href={rssUrl}>
                   <svg
                     aria-hidden="true"
                     width="14"
@@ -101,7 +101,7 @@ export default function Footer(): ReactNode {
                   </svg>
                   RSS
                 </a>
-                <a className={styles.feedButton} href={useBaseUrl('/blog/atom.xml')}>
+                <a className={styles.feedButton} href={atomUrl}>
                   Atom
                 </a>
                 <Link

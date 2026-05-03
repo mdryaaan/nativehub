@@ -324,14 +324,14 @@ kubectl uncordon nativehub-worker
 
 ## Everyday kind commands
 
-| Command | What it does |
-| --- | --- |
-| `kind get clusters` | List clusters |
-| `kind get nodes --name X` | List a cluster's node containers |
-| `kind load docker-image IMG --name X` | Copy a local image into the nodes |
-| `kind export logs ./logs --name X` | Dump all node and control-plane logs |
-| `kind delete cluster --name X` | Tear it all down |
-| `docker exec -it X-worker bash` | Shell into a node |
+| Command                               | What it does                         |
+| ------------------------------------- | ------------------------------------ |
+| `kind get clusters`                   | List clusters                        |
+| `kind get nodes --name X`             | List a cluster's node containers     |
+| `kind load docker-image IMG --name X` | Copy a local image into the nodes    |
+| `kind export logs ./logs --name X`    | Dump all node and control-plane logs |
+| `kind delete cluster --name X`        | Tear it all down                     |
+| `docker exec -it X-worker bash`       | Shell into a node                    |
 
 ## When kind is not the right tool
 

@@ -18,11 +18,11 @@ Everything else — images, registries, `docker run` — is machinery built arou
 
 ## The three kernel features underneath
 
-| Feature | What it isolates | Example |
-| --- | --- | --- |
-| **Namespaces** | What a process can *see* | PID, network, mount, UTS, IPC, user, cgroup |
-| **cgroups** | What a process can *use* | CPU shares, memory limit, PIDs limit, block I/O |
-| **Union filesystem** | How the root filesystem is *assembled* | overlayfs stacking read-only layers under one writable layer |
+| Feature              | What it isolates                       | Example                                                      |
+| -------------------- | -------------------------------------- | ------------------------------------------------------------ |
+| **Namespaces**       | What a process can _see_               | PID, network, mount, UTS, IPC, user, cgroup                  |
+| **cgroups**          | What a process can _use_               | CPU shares, memory limit, PIDs limit, block I/O              |
+| **Union filesystem** | How the root filesystem is _assembled_ | overlayfs stacking read-only layers under one writable layer |
 
 Namespaces give a container its own view of the world. cgroups (control groups) cap its
 consumption so one container cannot starve the rest of the host. The union filesystem is what makes
@@ -40,7 +40,7 @@ An image is an ordered stack of read-only filesystem layers plus a JSON configur
 describing how to start the container (entrypoint, env, working directory, exposed ports).
 
 Each instruction in a `Dockerfile` that changes the filesystem — `RUN`, `COPY`, `ADD` — produces a
-new layer containing only the *difference* from the layer below it. Instructions that only change
+new layer containing only the _difference_ from the layer below it. Instructions that only change
 metadata — `ENV`, `WORKDIR`, `CMD`, `LABEL`, `EXPOSE` — do not add a filesystem layer.
 
 When you start a container, the runtime stacks those read-only layers with overlayfs and adds a
@@ -64,7 +64,7 @@ docker image inspect nginx:1.27-alpine --format '{{json .RootFS.Layers}}'
 ## Images vs containers vs registries
 
 - An **image** is an immutable, content-addressed artifact identified by a digest such as
-  `sha256:9f3c…`. Tags like `nginx:1.27` are mutable pointers *to* a digest.
+  `sha256:9f3c…`. Tags like `nginx:1.27` are mutable pointers _to_ a digest.
 - A **container** is a running (or stopped) instance of an image, with its own writable layer,
   namespaces, and cgroup limits.
 - A **registry** stores and serves images. Docker Hub, GitHub Container Registry (`ghcr.io`), and
@@ -106,7 +106,7 @@ Three things are doing the real work here:
 1. **Multi-stage build.** The Go toolchain (roughly 800 MB) never reaches the final image. Only the
    compiled binary is copied across, so the published image is a few megabytes.
 2. **Cache-friendly ordering.** Files that change rarely (`go.mod`) are copied before files that
-   change constantly (source). Docker invalidates a layer *and everything after it*, so putting the
+   change constantly (source). Docker invalidates a layer _and everything after it_, so putting the
    volatile `COPY . .` last keeps the dependency layer warm.
 3. **Non-root by default.** `USER nonroot` means a container escape starts from an unprivileged
    account rather than root.
@@ -115,11 +115,11 @@ Three things are doing the real work here:
 
 This trips up almost everyone. Both define what runs; they compose differently.
 
-| | `ENTRYPOINT` | `CMD` |
-| --- | --- | --- |
-| Purpose | The executable | Default arguments to it |
-| Overridden by | `docker run --entrypoint` | Any trailing args to `docker run` |
-| Recommended form | exec form: `["/server"]` | exec form: `["--port=8080"]` |
+|                  | `ENTRYPOINT`              | `CMD`                             |
+| ---------------- | ------------------------- | --------------------------------- |
+| Purpose          | The executable            | Default arguments to it           |
+| Overridden by    | `docker run --entrypoint` | Any trailing args to `docker run` |
+| Recommended form | exec form: `["/server"]`  | exec form: `["--port=8080"]`      |
 
 With `ENTRYPOINT ["/server"]` and `CMD ["--port=8080"]`, running `docker run img --port=9090`
 executes `/server --port=9090`.
@@ -177,7 +177,8 @@ executes `/server --port=9090`.
         docker system df                # where the disk went
       `,
     },
-  ]}
+
+]}
 />
 
 ## Persisting data
@@ -202,7 +203,7 @@ By default a container joins the `bridge` network and gets a private IP. Publish
 `-p 8080:80` installs a NAT rule so traffic to the host's port 8080 is forwarded to port 80 in the
 container. On a **user-defined** bridge network — created with `docker network create` — Docker also
 runs an embedded DNS server, so containers can reach each other by container name. That name-based
-resolution does *not* work on the default bridge, which is why Compose always creates its own
+resolution does _not_ work on the default bridge, which is why Compose always creates its own
 network.
 
 ```bash

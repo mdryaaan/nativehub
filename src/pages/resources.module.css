@@ -57,7 +57,9 @@
 
 .docLink svg {
   opacity: 0.45;
-  transition: transform 180ms var(--nh-ease), opacity 180ms var(--nh-ease);
+  transition:
+    transform 180ms var(--nh-ease),
+    opacity 180ms var(--nh-ease);
 }
 
 .docLink:hover svg {

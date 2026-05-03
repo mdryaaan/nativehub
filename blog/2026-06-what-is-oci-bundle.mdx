@@ -21,11 +21,11 @@ is.
 The Open Container Initiative publishes three separate specifications, and it is worth being
 precise about which does what:
 
-| Specification | Describes | Consumed by |
-| --- | --- | --- |
-| **Image spec** | The distributable artifact: layers, manifest, config, index | containerd, CRI-O, Podman |
-| **Runtime spec** | The *bundle*: a `rootfs` directory plus `config.json` | runc, crun, runsc, Kata |
-| **Distribution spec** | The registry HTTP API for push and pull | GHCR, ECR, Docker Hub, Harbor |
+| Specification         | Describes                                                   | Consumed by                   |
+| --------------------- | ----------------------------------------------------------- | ----------------------------- |
+| **Image spec**        | The distributable artifact: layers, manifest, config, index | containerd, CRI-O, Podman     |
+| **Runtime spec**      | The _bundle_: a `rootfs` directory plus `config.json`       | runc, crun, runsc, Kata       |
+| **Distribution spec** | The registry HTTP API for push and pull                     | GHCR, ECR, Docker Hub, Harbor |
 
 The step between them is the one people miss. A container manager pulls an image, unpacks its layers
 into a single directory, merges the image's config with any runtime overrides you supplied, and
@@ -81,15 +81,10 @@ annotated tour of the parts that matter.
     "terminal": true,
     "user": { "uid": 0, "gid": 0, "additionalGids": [] },
     "args": ["sh"],
-    "env": [
-      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-      "TERM=xterm"
-    ],
+    "env": ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "TERM=xterm"],
     "cwd": "/",
     "noNewPrivileges": true,
-    "rlimits": [
-      { "type": "RLIMIT_NOFILE", "hard": 1024, "soft": 1024 }
-    ]
+    "rlimits": [{ "type": "RLIMIT_NOFILE", "hard": 1024, "soft": 1024 }]
   }
 }
 ```
@@ -116,13 +111,13 @@ modules (`CAP_SYS_MODULE`) or change the system clock (`CAP_SYS_TIME`).
 
 The five sets are not interchangeable:
 
-| Set | Meaning |
-| --- | --- |
-| `bounding` | The ceiling — nothing outside this can ever be acquired |
-| `permitted` | What the process may enable |
-| `effective` | What is active for permission checks right now |
+| Set           | Meaning                                                  |
+| ------------- | -------------------------------------------------------- |
+| `bounding`    | The ceiling — nothing outside this can ever be acquired  |
+| `permitted`   | What the process may enable                              |
+| `effective`   | What is active for permission checks right now           |
 | `inheritable` | Preserved across `execve()` of a file with matching bits |
-| `ambient` | Preserved across `execve()` of an unprivileged binary |
+| `ambient`     | Preserved across `execve()` of an unprivileged binary    |
 
 Kubernetes' `capabilities.drop: ["ALL"]` empties all of these. `CAP_NET_BIND_SERVICE` is the one
 people add back, to bind port 80 as a non-root user.
@@ -252,13 +247,13 @@ is what "rootless containers" means, and Kubernetes exposes it as `hostUsers: fa
 
 The runtime spec defines operations, not just a file format. runc implements each as a subcommand:
 
-| Operation | What happens |
-| --- | --- |
-| `create` | Namespaces and cgroups are set up, the rootfs is pivoted into, and the process is started **but held** before `execve` |
-| `start` | The held process is released and `execve` runs `process.args` |
-| `state` | Report the container's status and PID |
-| `kill` | Deliver a signal to the container process |
-| `delete` | Tear down the cgroup and remove state |
+| Operation | What happens                                                                                                           |
+| --------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `create`  | Namespaces and cgroups are set up, the rootfs is pivoted into, and the process is started **but held** before `execve` |
+| `start`   | The held process is released and `execve` runs `process.args`                                                          |
+| `state`   | Report the container's status and PID                                                                                  |
+| `kill`    | Deliver a signal to the container process                                                                              |
+| `delete`  | Tear down the cgroup and remove state                                                                                  |
 
 ```bash
 sudo runc create demo
@@ -309,7 +304,7 @@ under `linux.resources`. Every Kubernetes field you set is a translation into th
   `seccompProfile` — each one is a line in this document, and knowing which line tells you exactly
   what it does and does not protect.
 - **It explains why runtimes are swappable.** crun, gVisor, and Kata read the same `config.json`.
-  They differ only in *how* they satisfy it — a C implementation, a user-space kernel, or a
+  They differ only in _how_ they satisfy it — a C implementation, a user-space kernel, or a
   microVM.
 - **It makes debugging possible.** When a container behaves unexpectedly, dumping its actual spec
   answers the question far faster than guessing at the layers above.

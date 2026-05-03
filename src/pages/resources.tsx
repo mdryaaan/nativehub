@@ -88,7 +88,8 @@ const DOC_GROUPS: DocGroup[] = [
   },
   {
     title: 'Packaging & delivery',
-    blurb: 'Two competing philosophies — templating versus overlays. Learn both, pick per project.',
+    blurb:
+      'Two competing philosophies — templating versus overlays. Learn both, pick per project.',
     links: [
       {
         name: 'Helm documentation',
@@ -163,7 +164,8 @@ const REPOS: Repo[] = [
     href: 'https://github.com/kubernetes/kubernetes',
     language: 'Go',
     why: 'The project itself. Enormous, but the controller implementations are surprisingly readable and are the definitive answer to “what does this actually do?”.',
-    start: 'pkg/controller/deployment — the rollout logic described in every tutorial, in code.',
+    start:
+      'pkg/controller/deployment — the rollout logic described in every tutorial, in code.',
   },
   {
     name: 'kubernetes-sigs/kubebuilder',
@@ -304,15 +306,16 @@ export default function Resources(): ReactNode {
             Learning roadmap
           </h2>
           <p className={styles.sectionLead}>
-            Four stages, in order. The durations assume a few focused hours a week alongside a job —
-            treat them as a sanity check, not a deadline.
+            Four stages, in order. The durations assume a few focused hours a week alongside a
+            job — treat them as a sanity check, not a deadline.
           </p>
 
           <LearningRoadmap steps={ROADMAP} />
 
           <CalloutBox variant="tip" title="Build something at every stage">
-            Reading about Kubernetes produces the illusion of understanding remarkably fast. Every
-            stage above should end with something running on a real cluster that you had to debug.
+            Reading about Kubernetes produces the illusion of understanding remarkably fast.
+            Every stage above should end with something running on a real cluster that you had
+            to debug.
           </CalloutBox>
         </section>
 

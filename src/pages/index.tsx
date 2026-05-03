@@ -39,10 +39,16 @@ function Hero(): ReactNode {
         </p>
 
         <div className={styles.heroActions}>
-          <Link className="button button--primary button--lg" to="/docs/learn/kubernetes-fundamentals">
+          <Link
+            className="button button--primary button--lg"
+            to="/docs/learn/kubernetes-fundamentals"
+          >
             Start learning
           </Link>
-          <Link className="button button--secondary button--lg" to="/docs/guides/deploy-first-app">
+          <Link
+            className="button button--secondary button--lg"
+            to="/docs/guides/deploy-first-app"
+          >
             Deploy your first app
           </Link>
         </div>
@@ -57,7 +63,8 @@ function Hero(): ReactNode {
           </div>
           <pre className={styles.terminalBody}>
             <code>
-              <span className={styles.prompt}>$</span> kubectl get deploy,rs,pod -l app=web{'\n'}
+              <span className={styles.prompt}>$</span> kubectl get deploy,rs,pod -l app=web
+              {'\n'}
               {'\n'}
               NAME{'                  '}READY{'   '}UP-TO-DATE{'   '}AVAILABLE{'\n'}
               deployment.apps/web{'   '}
@@ -208,8 +215,8 @@ function Sections(): ReactNode {
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Four ways in</h2>
           <p className={styles.sectionLead}>
-            Whether you are starting from scratch or looking up a flag you half remember, there is a
-            door here for it.
+            Whether you are starting from scratch or looking up a flag you half remember, there
+            is a door here for it.
           </p>
         </div>
 
@@ -287,8 +294,8 @@ function Newsletter(): ReactNode {
         <div className={styles.ctaCard}>
           <h2 className={styles.ctaTitle}>Keep up with new guides</h2>
           <p className={styles.ctaLead}>
-            New posts land every few weeks. Subscribe with any feed reader — no email address, no
-            tracking, no list to unsubscribe from.
+            New posts land every few weeks. Subscribe with any feed reader — no email address,
+            no tracking, no list to unsubscribe from.
           </p>
           <div className={styles.ctaActions}>
             {/* Feeds are emitted after the broken-link check runs, so they are

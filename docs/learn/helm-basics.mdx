@@ -16,12 +16,12 @@ layer or a lot of copy-paste. Helm is the most widely deployed answer.
 
 ## The four nouns
 
-| Term | What it is |
-| --- | --- |
-| **Chart** | A versioned package of templates plus default values |
-| **Values** | The configuration input, merged from `values.yaml`, `-f` files, and `--set` flags |
-| **Release** | One installation of a chart into a cluster, with a name and a revision history |
-| **Repository** | An HTTP server (or OCI registry) hosting packaged charts |
+| Term           | What it is                                                                        |
+| -------------- | --------------------------------------------------------------------------------- |
+| **Chart**      | A versioned package of templates plus default values                              |
+| **Values**     | The configuration input, merged from `values.yaml`, `-f` files, and `--set` flags |
+| **Release**    | One installation of a chart into a cluster, with a name and a revision history    |
+| **Repository** | An HTTP server (or OCI registry) hosting packaged charts                          |
 
 The key mental model: **Helm renders templates locally into plain Kubernetes manifests, then sends
 those manifests to the API server.** There is no in-cluster Helm component. Helm 3 removed Tiller
@@ -56,8 +56,8 @@ apiVersion: v2
 name: mychart
 description: A web service
 type: application
-version: 1.4.2        # the CHART version — bump on any chart change
-appVersion: "2.7.0"   # the APPLICATION version — the image tag you ship
+version: 1.4.2 # the CHART version — bump on any chart change
+appVersion: '2.7.0' # the APPLICATION version — the image tag you ship
 ```
 
 ## Templating
@@ -104,13 +104,13 @@ spec:
 
 ### The built-in objects
 
-| Object | Contains |
-| --- | --- |
-| `.Values` | The merged values |
-| `.Chart` | Fields from `Chart.yaml` — `.Chart.Name`, `.Chart.Version`, `.Chart.AppVersion` |
-| `.Release` | `.Release.Name`, `.Release.Namespace`, `.Release.IsUpgrade`, `.Release.Revision` |
-| `.Capabilities` | Cluster facts — `.Capabilities.KubeVersion`, `.Capabilities.APIVersions.Has` |
-| `.Files` | Non-template files in the chart, via `.Files.Get` |
+| Object          | Contains                                                                         |
+| --------------- | -------------------------------------------------------------------------------- |
+| `.Values`       | The merged values                                                                |
+| `.Chart`        | Fields from `Chart.yaml` — `.Chart.Name`, `.Chart.Version`, `.Chart.AppVersion`  |
+| `.Release`      | `.Release.Name`, `.Release.Namespace`, `.Release.IsUpgrade`, `.Release.Revision` |
+| `.Capabilities` | Cluster facts — `.Capabilities.KubeVersion`, `.Capabilities.APIVersions.Has`     |
+| `.Files`        | Non-template files in the chart, via `.Files.Get`                                |
 
 ### Whitespace, the part everyone fights
 
@@ -236,7 +236,8 @@ helm upgrade --install web ./mychart \
         helm push mychart-1.4.2.tgz oci://ghcr.io/acme/charts
       `,
     },
-  ]}
+
+]}
 />
 
 `--atomic` is the flag worth remembering: it rolls the release back automatically if the upgrade
@@ -247,10 +248,10 @@ fails, so you never sit in a half-applied state. It implies `--wait`.
 ```yaml title="Chart.yaml"
 dependencies:
   - name: postgresql
-    version: "16.2.1"
+    version: '16.2.1'
     repository: https://charts.bitnami.com/bitnami
-    condition: postgresql.enabled     # skip the subchart when false
-    alias: primary                    # rename it in values
+    condition: postgresql.enabled # skip the subchart when false
+    alias: primary # rename it in values
 ```
 
 ```bash
@@ -269,9 +270,9 @@ the release:
 ```yaml
 metadata:
   annotations:
-    "helm.sh/hook": pre-upgrade
-    "helm.sh/hook-weight": "-5"                    # lower runs first
-    "helm.sh/hook-delete-policy": hook-succeeded
+    'helm.sh/hook': pre-upgrade
+    'helm.sh/hook-weight': '-5' # lower runs first
+    'helm.sh/hook-delete-policy': hook-succeeded
 ```
 
 Available points include `pre-install`, `post-install`, `pre-upgrade`, `post-upgrade`,
@@ -289,11 +290,11 @@ Helm's templating is string manipulation over YAML, which becomes hard to reason
 charts. Alternatives worth knowing:
 
 - **Kustomize** — overlays and strategic merge patches, no templating language, built into `kubectl
-  apply -k`. Excellent for "same manifests, small per-environment differences".
+apply -k`. Excellent for "same manifests, small per-environment differences".
 - **cdk8s / Pulumi** — define manifests in a real programming language with real types.
 - **Timoni / KCL** — CUE-based, schema-first configuration with strong validation.
 
-Helm remains the default for *distributing* third-party applications, because a versioned, packaged
+Helm remains the default for _distributing_ third-party applications, because a versioned, packaged
 artifact with a values contract is exactly what that job needs.
 
 ## What to read next

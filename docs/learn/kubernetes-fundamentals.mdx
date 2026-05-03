@@ -13,27 +13,27 @@ import CodeTabs from '@site/src/components/CodeTabs';
 Kubernetes is a control loop with an API in front of it. You write down the state you want; a set
 of controllers continuously compares that against the state of the cluster and takes action to close
 the gap. Almost every behaviour that seems surprising at first becomes obvious once you think in
-terms of *desired state* versus *observed state*.
+terms of _desired state_ versus _observed state_.
 
 ## Cluster anatomy
 
 ### Control plane
 
-| Component | Responsibility |
-| --- | --- |
-| **kube-apiserver** | The only component that talks to etcd. Validates, authenticates, authorises, and persists every object. Everything else is a client of this API. |
-| **etcd** | Consistent key-value store holding all cluster state. The one component you must back up. |
-| **kube-scheduler** | Watches for Pods with no `nodeName` and picks a node based on resource requests, affinity rules, taints, and topology constraints. |
-| **kube-controller-manager** | Runs the built-in controllers — Deployment, ReplicaSet, Node, Job, EndpointSlice, and dozens more. |
-| **cloud-controller-manager** | Cloud-specific glue: provisioning load balancers, attaching disks, labelling nodes with zone information. |
+| Component                    | Responsibility                                                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **kube-apiserver**           | The only component that talks to etcd. Validates, authenticates, authorises, and persists every object. Everything else is a client of this API. |
+| **etcd**                     | Consistent key-value store holding all cluster state. The one component you must back up.                                                        |
+| **kube-scheduler**           | Watches for Pods with no `nodeName` and picks a node based on resource requests, affinity rules, taints, and topology constraints.               |
+| **kube-controller-manager**  | Runs the built-in controllers — Deployment, ReplicaSet, Node, Job, EndpointSlice, and dozens more.                                               |
+| **cloud-controller-manager** | Cloud-specific glue: provisioning load balancers, attaching disks, labelling nodes with zone information.                                        |
 
 ### Every node
 
-| Component | Responsibility |
-| --- | --- |
-| **kubelet** | The node agent. Watches the API server for Pods assigned to its node and drives the container runtime to make them exist. Reports status back. |
-| **Container runtime** | containerd or CRI-O. Actually pulls images and starts containers, via the CRI (Container Runtime Interface). |
-| **kube-proxy** | Programs iptables or IPVS rules so that Service virtual IPs are routed to healthy backing Pods. |
+| Component             | Responsibility                                                                                                                                 |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **kubelet**           | The node agent. Watches the API server for Pods assigned to its node and drives the container runtime to make them exist. Reports status back. |
+| **Container runtime** | containerd or CRI-O. Actually pulls images and starts containers, via the CRI (Container Runtime Interface).                                   |
+| **kube-proxy**        | Programs iptables or IPVS rules so that Service virtual IPs are routed to healthy backing Pods.                                                |
 
 <CalloutBox variant="info" title="Nothing is imperative">
   `kubectl apply` does not create a container. It writes an object to etcd via the API server. A
@@ -117,12 +117,12 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1          # one extra Pod may exist during the rollout
-      maxUnavailable: 0    # never drop below 3 ready Pods
+      maxSurge: 1 # one extra Pod may exist during the rollout
+      maxUnavailable: 0 # never drop below 3 ready Pods
   template:
     metadata:
       labels:
-        app: web           # must match spec.selector.matchLabels
+        app: web # must match spec.selector.matchLabels
     spec:
       containers:
         - name: nginx
@@ -139,13 +139,13 @@ spec:
 
 ### Choosing a controller
 
-| Controller | Use it when | Key property |
-| --- | --- | --- |
-| **Deployment** | Stateless services | Interchangeable Pods, rolling updates, easy rollback |
-| **StatefulSet** | Databases, queues, anything with identity | Stable ordinal names (`db-0`, `db-1`), stable per-Pod storage, ordered rollout |
-| **DaemonSet** | Node-level agents: log shippers, CNI, node exporters | Exactly one Pod per matching node |
-| **Job** | Run-to-completion batch work | Retries until `completions` succeed |
-| **CronJob** | Scheduled batch work | Creates Jobs on a cron schedule |
+| Controller      | Use it when                                          | Key property                                                                   |
+| --------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Deployment**  | Stateless services                                   | Interchangeable Pods, rolling updates, easy rollback                           |
+| **StatefulSet** | Databases, queues, anything with identity            | Stable ordinal names (`db-0`, `db-1`), stable per-Pod storage, ordered rollout |
+| **DaemonSet**   | Node-level agents: log shippers, CNI, node exporters | Exactly one Pod per matching node                                              |
+| **Job**         | Run-to-completion batch work                         | Retries until `completions` succeed                                            |
+| **CronJob**     | Scheduled batch work                                 | Creates Jobs on a cron schedule                                                |
 
 ## The reconciliation loop, concretely
 
@@ -189,7 +189,8 @@ spec:
         kubectl rollout undo deployment/web --to-revision=2
       `,
     },
-  ]}
+
+]}
 />
 
 Delete a Pod managed by a Deployment and a replacement appears within seconds. The ReplicaSet
@@ -213,11 +214,11 @@ kubectl label pod web-abc123 tier=canary --overwrite
 
 ## Health probes
 
-| Probe | Failure behaviour | Use for |
-| --- | --- | --- |
-| `startupProbe` | Suspends the other probes until it passes once | Slow-booting apps (JVM, large migrations) |
-| `readinessProbe` | Pod removed from Service endpoints; **not** restarted | "Can I serve traffic right now?" |
-| `livenessProbe` | Container is **restarted** | "Am I wedged and unrecoverable?" |
+| Probe            | Failure behaviour                                     | Use for                                   |
+| ---------------- | ----------------------------------------------------- | ----------------------------------------- |
+| `startupProbe`   | Suspends the other probes until it passes once        | Slow-booting apps (JVM, large migrations) |
+| `readinessProbe` | Pod removed from Service endpoints; **not** restarted | "Can I serve traffic right now?"          |
+| `livenessProbe`  | Container is **restarted**                            | "Am I wedged and unrecoverable?"          |
 
 A common outage pattern: pointing a liveness probe at an endpoint that depends on a database. The
 database blips, every replica fails liveness at once, and the whole Deployment restart-loops.

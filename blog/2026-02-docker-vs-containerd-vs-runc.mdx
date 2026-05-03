@@ -145,7 +145,7 @@ implementing CRI can back a Kubernetes node.
 
 That adapter is what was removed in Kubernetes 1.24. Nothing about "Docker images" was deprecated —
 they are OCI images, and every CRI runtime runs them unchanged. What went away was the kubelet's
-special-case translation layer for talking to `dockerd`. Since Docker already sat *on top of*
+special-case translation layer for talking to `dockerd`. Since Docker already sat _on top of_
 containerd, removing it from the node path simply deleted a hop:
 
 ```
@@ -169,24 +169,24 @@ sudo crictl inspect <container-id>
 The reason all of this interoperates is that the Open Container Initiative standardised the
 boundaries:
 
-| Specification | Defines | Consumed by |
-| --- | --- | --- |
-| **Image spec** | The layout of an image: layers, config, manifest, index | containerd, CRI-O, Podman, BuildKit |
-| **Runtime spec** | A *bundle*: a `rootfs` directory plus `config.json` | runc, crun, runsc, Kata |
-| **Distribution spec** | The registry HTTP API for push and pull | Docker Hub, GHCR, ECR, Harbor, Zot |
+| Specification         | Defines                                                 | Consumed by                         |
+| --------------------- | ------------------------------------------------------- | ----------------------------------- |
+| **Image spec**        | The layout of an image: layers, config, manifest, index | containerd, CRI-O, Podman, BuildKit |
+| **Runtime spec**      | A _bundle_: a `rootfs` directory plus `config.json`     | runc, crun, runsc, Kata             |
+| **Distribution spec** | The registry HTTP API for push and pull                 | Docker Hub, GHCR, ECR, Harbor, Zot  |
 
 An image built by `docker build`, pushed to GHCR, pulled by containerd, and run by crun crosses four
 different implementations without anyone negotiating anything, because each hand-off is specified.
 
 ## So which one do I use?
 
-| You are… | Use |
-| --- | --- |
-| Developing on a laptop | **Docker Desktop** or **Podman Desktop** — you want builds, Compose, and volumes |
-| Running a Kubernetes node | **containerd** (the default nearly everywhere) or **CRI-O** |
+| You are…                    | Use                                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------------ |
+| Developing on a laptop      | **Docker Desktop** or **Podman Desktop** — you want builds, Compose, and volumes           |
+| Running a Kubernetes node   | **containerd** (the default nearly everywhere) or **CRI-O**                                |
 | Debugging a Kubernetes node | **crictl**, not `docker` — the kubelet's containers are in containerd's `k8s.io` namespace |
-| Building images in CI | **BuildKit** (via `docker buildx`), or **Buildah**/**Kaniko** for daemonless builds |
-| Needing stronger isolation | **gVisor** or **Kata Containers**, dropped in as the OCI runtime |
+| Building images in CI       | **BuildKit** (via `docker buildx`), or **Buildah**/**Kaniko** for daemonless builds        |
+| Needing stronger isolation  | **gVisor** or **Kata Containers**, dropped in as the OCI runtime                           |
 
 ## The one-sentence summary
 

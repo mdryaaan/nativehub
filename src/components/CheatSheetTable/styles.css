@@ -33,7 +33,9 @@
   border-radius: var(--nh-radius);
   background: var(--nh-surface-raised);
   color: var(--nh-text-subtle);
-  transition: border-color 160ms var(--nh-ease), box-shadow 160ms var(--nh-ease);
+  transition:
+    border-color 160ms var(--nh-ease),
+    box-shadow 160ms var(--nh-ease);
 }
 
 .nh-cheatsheet__search:focus-within {

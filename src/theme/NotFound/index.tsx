@@ -44,8 +44,8 @@ export default function NotFound(): ReactNode {
 
               <p className={styles.lead}>
                 <Translate id="nativehub.notFound.lead">
-                  The URL does not match anything on this site. It may have moved, or the link that
-                  brought you here may be out of date.
+                  The URL does not match anything on this site. It may have moved, or the link
+                  that brought you here may be out of date.
                 </Translate>
               </p>
 
@@ -75,9 +75,7 @@ export default function NotFound(): ReactNode {
 
               <p className={styles.report}>
                 Think this link should work?{' '}
-                <Link to="https://github.com/mdryaan/nativehub/issues/new">
-                  Open an issue
-                </Link>{' '}
+                <Link to="https://github.com/mdryaan/nativehub/issues/new">Open an issue</Link>{' '}
                 and it will get fixed.
               </p>
             </div>

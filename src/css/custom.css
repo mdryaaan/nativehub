@@ -57,12 +57,13 @@
   --nh-text-subtle: var(--nh-ink-500);
 
   /* Typography. */
-  --nh-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica,
-    Arial, sans-serif;
-  --nh-font-display: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, 'Segoe UI',
-    sans-serif;
-  --nh-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo,
-    Consolas, 'Liberation Mono', monospace;
+  --nh-font-sans:
+    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --nh-font-display:
+    'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --nh-font-mono:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
 
   /* Modular type scale, ratio ~1.22, fluid at the top end. */
   --nh-text-xs: 0.75rem;

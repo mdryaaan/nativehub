@@ -176,7 +176,8 @@ Two BuildKit features worth adopting immediately.
             npm ci --omit=dev
       `,
     },
-  ]}
+
+]}
 />
 
 <CalloutBox variant="danger" title="ARG values are permanently visible">
@@ -240,12 +241,12 @@ kubectl create secret docker-registry ghcr \
 
 ## 7. Tagging strategy
 
-| Tag | Mutable? | Use for |
-| --- | --- | --- |
-| `latest` | Yes | Local convenience only |
-| `1.0.0` | Should not be | Human-readable releases |
-| `sha-a1b2c3d` | No | The tag CI should always produce |
-| `@sha256:…` | Never | What production manifests should reference |
+| Tag           | Mutable?      | Use for                                    |
+| ------------- | ------------- | ------------------------------------------ |
+| `latest`      | Yes           | Local convenience only                     |
+| `1.0.0`       | Should not be | Human-readable releases                    |
+| `sha-a1b2c3d` | No            | The tag CI should always produce           |
+| `@sha256:…`   | Never         | What production manifests should reference |
 
 Deploy by digest. A tag can be repointed at different content; a digest cannot. This is what makes
 a rollback deterministic.

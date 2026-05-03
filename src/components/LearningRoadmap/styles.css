@@ -26,11 +26,7 @@
   bottom: -0.25rem;
   width: 2px;
   transform: translateX(-1px);
-  background: linear-gradient(
-    to bottom,
-    var(--ifm-color-primary),
-    var(--nh-border) 85%
-  );
+  background: linear-gradient(to bottom, var(--ifm-color-primary), var(--nh-border) 85%);
 }
 
 .nh-roadmap__marker {

@@ -16,7 +16,9 @@ export interface CalloutBoxProps {
 const ICONS: Record<CalloutVariant, ReactNode> = {
   info: <path d="M12 16v-5M12 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
   tip: <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2Z" />,
-  warning: <path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />,
+  warning: (
+    <path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+  ),
   danger: <path d="M15 9l-6 6M9 9l6 6M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
 };
 
@@ -39,7 +41,11 @@ const TONES: Record<CalloutVariant, { accent: string; wash: string; darkWash: st
     wash: 'rgb(245 158 11 / 0.1)',
     darkWash: 'rgb(251 191 36 / 0.12)',
   },
-  danger: { accent: '#be123c', wash: 'rgb(190 18 60 / 0.07)', darkWash: 'rgb(251 113 133 / 0.1)' },
+  danger: {
+    accent: '#be123c',
+    wash: 'rgb(190 18 60 / 0.07)',
+    darkWash: 'rgb(251 113 133 / 0.1)',
+  },
 };
 
 export default function CalloutBox({
