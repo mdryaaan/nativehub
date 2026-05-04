@@ -618,7 +618,56 @@ blockquote {
    9. Blog
    ========================================================================== */
 
+/* --- List page ---------------------------------------------------------- */
+
+/* Each post summary becomes a card so the list scans as a set of items rather
+   than one long ribbon of text. */
+.blog-list-page article {
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--nh-border);
+  border-radius: var(--nh-radius-xl);
+  background: var(--nh-surface-raised);
+  box-shadow: var(--nh-shadow-sm);
+  transition:
+    transform var(--nh-duration) var(--nh-ease),
+    border-color var(--nh-duration) var(--nh-ease),
+    box-shadow var(--nh-duration) var(--nh-ease);
+}
+
+.blog-list-page article:hover {
+  transform: translateY(-2px);
+  border-color: var(--ifm-color-primary);
+  box-shadow: var(--nh-shadow);
+}
+
+.blog-list-page article > header > h2 {
+  /* The stock size is tuned for a full-width post; in a card it overwhelms. */
+  font-size: var(--nh-text-2xl);
+  line-height: 1.2;
+  margin-bottom: 0.5rem;
+}
+
+.blog-list-page article > header > h2 a,
+.blog-post-page article > header > h1 a {
+  color: var(--ifm-heading-color);
+  text-decoration: none;
+}
+
+.blog-list-page article > header > h2 a:hover {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.blog-list-page article .markdown {
+  font-size: 0.95rem;
+  color: var(--nh-text-muted);
+}
+
+/* --- Shared headings ---------------------------------------------------- */
+
 .blog-wrapper .markdown h1,
+article header h1,
 article header h2 a {
   font-family: var(--nh-font-display);
   letter-spacing: -0.028em;
@@ -626,6 +675,129 @@ article header h2 a {
 
 article header h2 a {
   transition: color var(--ifm-transition-fast) var(--nh-ease);
+}
+
+/* --- Post metadata line ------------------------------------------------- */
+
+.blog-wrapper time,
+.blog-wrapper [class*='blogPostDate'] {
+  font-size: var(--nh-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--nh-text-subtle);
+}
+
+/* --- Author block ------------------------------------------------------- */
+
+/* The stock author row packs name, title and socials with almost no leading. */
+.blog-wrapper [class*='authorCol'] {
+  padding-left: 0 !important;
+}
+
+.blog-wrapper .avatar {
+  align-items: center;
+}
+
+.blog-wrapper .avatar__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-left: 0;
+}
+
+.avatar__name {
+  font-family: var(--nh-font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ifm-heading-color);
+}
+
+.avatar__name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.avatar__name a:hover {
+  color: var(--ifm-color-primary);
+}
+
+.avatar__subtitle {
+  margin-top: 0.1rem;
+  font-size: var(--nh-text-xs);
+  line-height: 1.4;
+  color: var(--nh-text-subtle);
+}
+
+.blog-wrapper [class*='authorSocials'] {
+  margin-top: 0.2rem;
+  gap: 0.45rem;
+}
+
+.blog-wrapper [class*='authorTitle'] {
+  font-size: var(--nh-text-xs);
+  line-height: 1.4;
+  color: var(--nh-text-subtle);
+}
+
+/* Year headings in the blog sidebar were sized as page headings. */
+.blog-wrapper [class*='yearGroupHeading'] {
+  font-family: var(--nh-font-display);
+  font-size: var(--nh-text-xs);
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  color: var(--nh-text-subtle);
+  margin: 1.1rem 0 0.35rem;
+}
+
+/* --- Tags --------------------------------------------------------------- */
+
+.blog-wrapper [class*='tag_'],
+.theme-doc-markdown [class*='tag_'] {
+  border-radius: 999px;
+  font-size: var(--nh-text-xs);
+  font-weight: 600;
+  padding: 0.15rem 0.65rem;
+  transition: all 160ms var(--nh-ease);
+}
+
+.blog-wrapper [class*='tag_']:hover {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #04211e;
+  text-decoration: none;
+}
+
+/* --- Blog sidebar ------------------------------------------------------- */
+
+.blog-wrapper [class*='sidebarItemTitle'] {
+  font-family: var(--nh-font-display);
+  font-size: var(--nh-text-xs);
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--nh-text-subtle);
+}
+
+.blog-wrapper [class*='sidebarItemLink'] {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--nh-text-muted);
+  padding: 0.3rem 0;
+  display: block;
+}
+
+.blog-wrapper [class*='sidebarItemLink']:hover,
+.blog-wrapper [class*='sidebarItemLinkActive'] {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+/* --- Read more ---------------------------------------------------------- */
+
+.blog-list-page article footer .button {
+  border-radius: 999px;
+  font-size: var(--nh-text-sm);
 }
 
 /* ==========================================================================
