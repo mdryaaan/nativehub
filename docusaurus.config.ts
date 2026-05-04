@@ -25,10 +25,33 @@ export interface LatestPost {
 async function latestPostsPlugin(context: LoadContext): Promise<Plugin> {
   const blogDir = path.join(context.siteDir, 'blog');
 
+  /** Maps a tag key from front matter to its display label in blog/tags.yml. */
+  async function readTagLabels(): Promise<Record<string, string>> {
+    const raw = await fs.readFile(path.join(blogDir, 'tags.yml'), 'utf8');
+    const labels: Record<string, string> = {};
+    let currentKey: string | null = null;
+
+    for (const line of raw.split('\n')) {
+      const key = /^([\w-]+):\s*$/.exec(line);
+      if (key) {
+        currentKey = key[1];
+        labels[currentKey] = currentKey;
+        continue;
+      }
+      const label = /^\s+label:\s*(.+?)\s*$/.exec(line);
+      if (label && currentKey) {
+        labels[currentKey] = label[1].replace(/^['"]|['"]$/g, '');
+      }
+    }
+
+    return labels;
+  }
+
   return {
     name: 'nativehub-latest-posts',
 
     async loadContent() {
+      const tagLabels = await readTagLabels();
       const entries = await fs.readdir(blogDir);
       const files = entries.filter((f) => f.endsWith('.mdx') || f.endsWith('.md'));
 
@@ -52,7 +75,9 @@ async function latestPostsPlugin(context: LoadContext): Promise<Plugin> {
             // 220 wpm, matching the blog plugin's own reading-time estimate
             // closely enough for a preview card.
             readingTime: Math.max(1, Math.round(words / 220)),
-            tags: Array.isArray(fm.tags) ? fm.tags.map(String) : [],
+            tags: Array.isArray(fm.tags)
+              ? fm.tags.map((tag) => tagLabels[String(tag)] ?? String(tag))
+              : [],
           } satisfies LatestPost;
         }),
       );
