@@ -246,7 +246,8 @@
     gap: 1.5rem 1rem;
   }
 
-  .heroActions .button {
+  .heroActions :global(.button) {
+    /* `.button` is an Infima global, so it must be escaped out of the module. */
     width: 100%;
   }
 
@@ -382,7 +383,7 @@
 }
 
 @media (max-width: 640px) {
-  .ctaActions .button {
+  .ctaActions :global(.button) {
     width: 100%;
   }
 }
