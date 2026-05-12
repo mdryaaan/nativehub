@@ -1,0 +1,277 @@
+---
+slug: common-kubectl-commands
+title: Common kubectl commands every developer should know
+authors: [mdryaan]
+tags: [kubernetes, kubectl, tooling]
+date: 2026-05-18
+description: A practical reference for get, describe, logs, exec, port-forward, and apply — with the flags that actually matter day to day.
+keywords: [kubectl, kubernetes, cli, commands, reference]
+image: /img/social-card.png
+---
+
+import CheatSheetTable from '@site/src/components/CheatSheetTable';
+
+There are hundreds of `kubectl` subcommands and you will use about fifteen. This is that fifteen,
+with the flags that turn each one from "prints something" into "answers the question."
+
+{/* truncate */}
+
+## The mental model
+
+`kubectl` is a REST client. Every command is an HTTP request to the API server, and you can see
+exactly which one:
+
+```bash
+kubectl get pods -v=6            # show the request URLs
+kubectl get pods -v=8            # show full request and response bodies
+```
+
+That is genuinely useful when a command behaves unexpectedly — you can see whether the problem is
+your query or the cluster's answer.
+
+## get — what exists
+
+```bash
+kubectl get pods
+kubectl get pods -A                      # every namespace
+kubectl get pods -o wide                 # + node, pod IP, nominated node
+kubectl get pod web-abc -o yaml          # the full object as stored
+kubectl get deploy,svc,ing -l app=web    # several kinds at once
+```
+
+### The flags worth memorising
+
+```bash
+# Watch changes as they happen
+kubectl get pods -w
+
+# Filter server-side by field (cheaper than grep, and exact)
+kubectl get pods --field-selector=status.phase=Running
+kubectl get events --field-selector type=Warning
+
+# Sort by anything in the object
+kubectl get pods --sort-by=.status.containerStatuses[0].restartCount
+kubectl get events --sort-by=.lastTimestamp
+
+# Pull out exactly the columns you want
+kubectl get pods -o custom-columns=\
+'NAME:.metadata.name,NODE:.spec.nodeName,IMAGE:.spec.containers[*].image'
+
+# JSONPath for scripting
+kubectl get pods -o jsonpath='{.items[*].spec.nodeName}'
+kubectl get svc web -o jsonpath='{.spec.clusterIP}'
+```
+
+`kubectl api-resources` is the command that makes the rest discoverable — it lists every kind the
+cluster knows about, along with its short name and whether it is namespaced.
+
+```bash
+kubectl api-resources | head -20
+kubectl explain deployment.spec.strategy.rollingUpdate    # inline schema docs
+```
+
+## describe — why it is in that state
+
+```bash
+kubectl describe pod web-abc
+kubectl describe node worker-1
+kubectl describe svc web
+```
+
+`describe` is not just a prettier `get`. It joins the object with related state — most importantly
+its **Events**, which appear at the bottom and are where the actual explanation lives:
+
+```
+Events:
+  Type     Reason     Age   From               Message
+  ----     ------     ----  ----               -------
+  Warning  Failed     2m    kubelet            Error: ImagePullBackOff
+  Warning  Unhealthy  1m    kubelet            Readiness probe failed: connection refused
+```
+
+Always read the bottom of `describe` first. It answers "why" more often than the logs do.
+
+```bash
+# Two high-value describe habits
+kubectl describe pod web-abc | sed -n '/Events:/,$p'         # events only
+kubectl describe node worker-1 | sed -n '/Allocated/,$p'     # what is claimed on a node
+```
+
+## logs — what the application said
+
+```bash
+kubectl logs web-abc
+kubectl logs web-abc -f                  # follow
+kubectl logs web-abc --tail=100
+kubectl logs web-abc --since=15m
+kubectl logs web-abc -c sidecar          # a specific container in the Pod
+```
+
+### The two flags people miss
+
+```bash
+# The container that CRASHED, not the one that just started
+kubectl logs web-abc --previous
+
+# Every Pod behind a label, with the pod name prefixed on each line
+kubectl logs -l app=web --all-containers --prefix --tail=50
+```
+
+`--previous` is the single most important debugging flag in kubectl. On a `CrashLoopBackOff` Pod,
+plain `kubectl logs` shows a container that has been alive for two seconds and has nothing to say.
+
+```bash
+# Timestamps are not on by default
+kubectl logs web-abc --timestamps --since-time='2026-05-18T10:00:00Z'
+```
+
+## exec — get inside
+
+```bash
+kubectl exec web-abc -- env | sort
+kubectl exec -it web-abc -- sh
+kubectl exec -it web-abc -c sidecar -- bash
+```
+
+The `--` matters: everything after it is passed to the container rather than parsed by kubectl.
+Without it, `kubectl exec web-abc ls -la` tries to interpret `-la` as a kubectl flag.
+
+```bash
+# Useful one-liners from inside a Pod
+kubectl exec web-abc -- cat /etc/resolv.conf
+kubectl exec web-abc -- nslookup db.default.svc.cluster.local
+kubectl exec web-abc -- wget -qO- --timeout=2 localhost:8080/healthz
+```
+
+When the image has no shell — distroless, scratch — `exec` cannot help. Use an ephemeral debug
+container instead, which joins the running Pod's namespaces:
+
+```bash
+kubectl debug -it web-abc --image=nicolaka/netshoot --target=app
+```
+
+## port-forward — reach it from your laptop
+
+```bash
+kubectl port-forward pod/web-abc 8080:8080
+kubectl port-forward svc/web 8080:80        # picks one backing Pod
+kubectl port-forward deploy/web 8080:8080
+
+# Bind on all interfaces (careful on shared networks)
+kubectl port-forward --address 0.0.0.0 svc/web 8080:80
+```
+
+This is a tunnel through the API server, so it works even when the Service is `ClusterIP`-only and
+the cluster is behind a bastion. It is the fastest way to reach a database or an admin UI you would
+never expose.
+
+Note that forwarding to a Service still selects **one** Pod and stays with it — it is not load
+balanced. For testing balancing behaviour, use a NodePort or an Ingress.
+
+## apply — declare the desired state
+
+```bash
+kubectl apply -f deployment.yaml
+kubectl apply -f k8s/                    # a whole directory
+kubectl apply -k overlays/prod           # kustomize
+kubectl apply -f https://example.com/manifest.yaml
+```
+
+### Before you apply
+
+```bash
+# Validate against the server's schema without changing anything
+kubectl apply -f deployment.yaml --dry-run=server
+
+# See exactly what would change on the live object
+kubectl diff -f deployment.yaml
+```
+
+`kubectl diff` is underused and excellent — it is `git diff` for the cluster, and it catches the
+"someone edited this by hand in production" case immediately.
+
+<div style={{ marginTop: '1.25rem' }} />
+
+**apply vs create vs replace.** `create` fails if the object exists. `replace` overwrites the whole
+object, dropping fields you did not send. `apply` performs a three-way merge between your manifest,
+the live object, and the last-applied configuration — which is why it is the only one safe to run
+repeatedly.
+
+## Rollouts
+
+```bash
+kubectl rollout status deployment/web --timeout=120s
+kubectl rollout history deployment/web
+kubectl rollout history deployment/web --revision=3
+kubectl rollout undo deployment/web
+kubectl rollout undo deployment/web --to-revision=2
+kubectl rollout restart deployment/web     # recreate every Pod, no spec change
+```
+
+`rollout restart` is the clean way to force a restart — it patches an annotation on the Pod
+template, which triggers a normal rolling update. Deleting Pods by hand skips the surge and
+availability guarantees.
+
+## Quick reference
+
+<CheatSheetTable
+  title="The commands worth committing to memory"
+  searchable
+  rows={[
+    { group: 'Inspect', command: 'kubectl get pods -o wide', description: 'Pods with node and IP columns' },
+    { group: 'Inspect', command: 'kubectl get all -n <ns>', description: 'Common resource kinds in a namespace' },
+    { group: 'Inspect', command: 'kubectl describe pod <pod>', description: 'Full state plus the events that explain it' },
+    { group: 'Inspect', command: 'kubectl explain <kind>.<field>', description: 'Schema documentation, offline' },
+    { group: 'Inspect', command: 'kubectl api-resources', description: 'Every kind the cluster knows, with short names' },
+    { group: 'Debug', command: 'kubectl logs <pod> --previous', description: 'Logs from the container that crashed' },
+    { group: 'Debug', command: 'kubectl logs -l app=web --prefix -f', description: 'Follow logs from every matching Pod' },
+    { group: 'Debug', command: 'kubectl exec -it <pod> -- sh', description: 'Interactive shell in a container' },
+    { group: 'Debug', command: 'kubectl debug -it <pod> --image=nicolaka/netshoot --target=<c>', description: 'Ephemeral debug container sharing the Pod namespaces' },
+    { group: 'Debug', command: 'kubectl get events --sort-by=.lastTimestamp', description: 'Cluster events in chronological order' },
+    { group: 'Debug', command: 'kubectl top pod --containers', description: 'Live CPU and memory per container' },
+    { group: 'Change', command: 'kubectl apply -f <file>', description: 'Create or update via three-way merge' },
+    { group: 'Change', command: 'kubectl diff -f <file>', description: 'Show what applying would change' },
+    { group: 'Change', command: 'kubectl scale deploy/<name> --replicas=5', description: 'Change replica count immediately' },
+    { group: 'Change', command: 'kubectl rollout restart deploy/<name>', description: 'Roll every Pod without a spec change' },
+    { group: 'Change', command: 'kubectl rollout undo deploy/<name>', description: 'Revert to the previous ReplicaSet' },
+    { group: 'Access', command: 'kubectl port-forward svc/<name> 8080:80', description: 'Tunnel a Service port to localhost' },
+    { group: 'Access', command: 'kubectl cp <pod>:/path ./local', description: 'Copy files out of a container' },
+    { group: 'Access', command: 'kubectl auth can-i <verb> <resource>', description: 'Check your own RBAC permissions' },
+    { group: 'Context', command: 'kubectl config get-contexts', description: 'List configured clusters' },
+    { group: 'Context', command: 'kubectl config use-context <name>', description: 'Switch cluster' },
+    { group: 'Context', command: 'kubectl config set-context --current --namespace=<ns>', description: 'Set the default namespace' },
+  ]}
+/>
+
+## Make it faster
+
+```bash title="~/.bashrc or ~/.zshrc"
+# Completion and a short alias that keeps completion working
+source <(kubectl completion bash)
+alias k=kubectl
+complete -o default -F __start_kubectl k
+
+# Stop typing -n every time
+alias kn='kubectl config set-context --current --namespace'
+```
+
+Two tools that pay for themselves in a week:
+
+- **kubectx / kubens** — switch cluster and namespace in one word.
+- **k9s** — a terminal UI over the cluster. Logs, exec, describe, and delete without typing a
+  command; it replaces most of the `get`/`describe` loop.
+
+## The habits that matter
+
+1. Read the **Events** at the bottom of `describe` before anything else.
+2. Use `--previous` on any Pod that has restarted.
+3. Run `kubectl diff` before `kubectl apply` on a cluster you care about.
+4. Use `--dry-run=server` to validate manifests in CI.
+5. Set the namespace in your context instead of typing `-n` two hundred times a day.
+
+## Further reading
+
+- [The kubectl cheat sheet](/tools) — the full searchable reference on this site.
+- [Debugging pod failures](/docs/guides/debugging-pod-failures) — these commands applied to a
+  specific problem.
+- The official [kubectl reference](https://kubernetes.io/docs/reference/kubectl/).
