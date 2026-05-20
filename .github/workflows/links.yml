@@ -1,0 +1,71 @@
+name: Link check
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'blog/**'
+      - 'src/**'
+      - 'docusaurus.config.ts'
+      - '.github/workflows/links.yml'
+  # External links rot on their own schedule, so re-check weekly regardless of
+  # whether anyone touched the content.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: links-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  lychee:
+    name: lychee
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Internal links are validated at build time; this produces the HTML that
+      # lychee then crawls for external ones.
+      - name: Build site
+        run: npm run build
+
+      - name: Check links with lychee
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --max-concurrency 8
+            --max-retries 2
+            --timeout 20
+            --accept 200,206,403,429
+            --exclude-path build/blog/rss.xml
+            --exclude-path build/blog/atom.xml
+            './build/**/*.html'
+            './docs/**/*.mdx'
+            './blog/**/*.mdx'
+            './*.md'
+          output: lychee-report.md
+          fail: true
+
+      - name: Open an issue when the scheduled run finds dead links
+        if: failure() && github.event_name == 'schedule'
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: Dead links detected
+          content-filepath: lychee-report.md
+          labels: documentation, broken-link
