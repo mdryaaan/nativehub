@@ -26,17 +26,17 @@ npm run start
 The dev server runs at <http://localhost:3000/nativehub/> with hot reload. Note the `/nativehub/`
 path — it is the configured `baseUrl`, and omitting it gives you a 404.
 
-| Command | What it does |
-| --- | --- |
-| `npm run start` | Dev server with hot reload |
-| `npm run build` | Production build. Fails on broken links and broken anchors. |
-| `npm run serve` | Serve the production build locally |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | ESLint over `src/`, zero warnings tolerated |
-| `npm run lint:fix` | ESLint with autofix |
-| `npm run format` | Prettier, write mode |
-| `npm run format:check` | Prettier, check mode — this is what CI runs |
-| `npm run clear` | Clear the Docusaurus cache when something looks stale |
+| Command                | What it does                                                |
+| ---------------------- | ----------------------------------------------------------- |
+| `npm run start`        | Dev server with hot reload                                  |
+| `npm run build`        | Production build. Fails on broken links and broken anchors. |
+| `npm run serve`        | Serve the production build locally                          |
+| `npm run typecheck`    | `tsc --noEmit`                                              |
+| `npm run lint`         | ESLint over `src/`, zero warnings tolerated                 |
+| `npm run lint:fix`     | ESLint with autofix                                         |
+| `npm run format`       | Prettier, write mode                                        |
+| `npm run format:check` | Prettier, check mode — this is what CI runs                 |
+| `npm run clear`        | Clear the Docusaurus cache when something looks stale       |
 
 Run `npm run build && npm run lint && npm run format:check && npm run typecheck` before opening a
 PR. That is exactly what CI runs.
@@ -185,7 +185,7 @@ import MyComponent from '@site/src/components/MyComponent';
 
 ## Writing style
 
-The bar for content here is *technically correct, or not published*.
+The bar for content here is _technically correct, or not published_.
 
 - **Verify against the primary source.** The Kubernetes docs, the OCI specs, or the code. Not
   another blog post.
@@ -205,13 +205,13 @@ Branch from `main`:
 <type>/<short-description>
 ```
 
-| Prefix | For |
-| --- | --- |
-| `feat/` | New page, post, component, or feature |
-| `fix/` | Corrections to content, styling, or behaviour |
-| `docs/` | README, CONTRIBUTING, and other repo docs |
-| `chore/` | Dependencies, config, tooling |
-| `refactor/` | Restructuring with no behaviour change |
+| Prefix      | For                                           |
+| ----------- | --------------------------------------------- |
+| `feat/`     | New page, post, component, or feature         |
+| `fix/`      | Corrections to content, styling, or behaviour |
+| `docs/`     | README, CONTRIBUTING, and other repo docs     |
+| `chore/`    | Dependencies, config, tooling                 |
+| `refactor/` | Restructuring with no behaviour change        |
 
 Examples: `feat/kubernetes-jobs-guide`, `fix/networking-dns-typo`.
 
