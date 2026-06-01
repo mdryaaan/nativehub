@@ -11,7 +11,6 @@ that runs them. Concepts explained properly, guides you can follow end to end, a
 actually work.
 
 [![CI](https://github.com/mdryaan/nativehub/actions/workflows/ci.yml/badge.svg)](https://github.com/mdryaan/nativehub/actions/workflows/ci.yml)
-[![Deploy](https://github.com/mdryaan/nativehub/actions/workflows/deploy.yml/badge.svg)](https://github.com/mdryaan/nativehub/actions/workflows/deploy.yml)
 [![Link check](https://github.com/mdryaan/nativehub/actions/workflows/links.yml/badge.svg)](https://github.com/mdryaan/nativehub/actions/workflows/links.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0e8f80.svg)](./LICENSE)
 [![Docusaurus](https://img.shields.io/badge/Docusaurus-3.10-0e8f80.svg?logo=docusaurus&logoColor=white)](https://docusaurus.io/)
@@ -259,9 +258,17 @@ npx lighthouse http://localhost:3000/nativehub/ \
 
 ## Deployment
 
-`deploy.yml` builds and publishes to GitHub Pages on every push to `main`, using the official
-Pages actions with OIDC rather than a deploy key. It checks out with `fetch-depth: 0` so the
-"Last updated" timestamps come from real commit dates.
+`deploy.yml` builds and publishes to GitHub Pages using the official Pages actions with OIDC
+rather than a deploy key. It checks out with `fetch-depth: 0` so the "Last updated" timestamps come
+from real commit dates.
+
+Publishing is **manual by design** — nothing goes live until you ask for it:
+
+1. Enable Pages: **Settings → Pages → Source: GitHub Actions**.
+2. Run the workflow: `gh workflow run deploy.yml`, or use the Actions tab.
+
+The site then lives at `https://mdryaan.github.io/nativehub/`. If you would rather publish on every
+merge, change the workflow's trigger back to `push` on `main`.
 
 To host it elsewhere, update `url`, `baseUrl`, `organizationName`, and `projectName` in
 `docusaurus.config.ts`, then serve the contents of `build/` from any static host.

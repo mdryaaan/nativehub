@@ -1,8 +1,10 @@
 name: Deploy
 
+# Publishing is deliberately manual: run this workflow from the Actions tab (or
+# with `gh workflow run deploy.yml`) once GitHub Pages is enabled for the repo
+# under Settings → Pages → Source: GitHub Actions. Switch to a `push` trigger on
+# `main` if you want every merge to publish automatically.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # One deployment at a time; never cancel one mid-flight.
