@@ -191,6 +191,27 @@ const config: Config = {
     ],
   ],
 
+  themes: [
+    // Offline, index-at-build-time search. Chosen over Algolia DocSearch so the
+    // site has working search without depending on an external account.
+    [
+      require.resolve('@easyops-cn/docusaurus-search-local'),
+      {
+        hashed: true,
+        indexDocs: true,
+        indexBlog: true,
+        indexPages: true,
+        docsRouteBasePath: '/docs',
+        blogRouteBasePath: '/blog',
+        highlightSearchTermsOnTargetPage: true,
+        explicitSearchResultPath: true,
+        searchResultLimits: 10,
+        searchBarShortcut: true,
+        searchBarShortcutHint: true,
+      },
+    ],
+  ],
+
   plugins: [
     latestPostsPlugin,
 
