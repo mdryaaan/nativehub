@@ -772,7 +772,16 @@ export default function Tools(): ReactNode {
           </div>
 
           <div id={`panel-${active.id}`} role="tabpanel" aria-labelledby={`tab-${active.id}`}>
-            <CheatSheetTable intro={active.intro} rows={active.rows} searchable />
+            {/* Keying on the sheet id remounts the table when the reader switches
+                sheets, clearing the search box and the category chips. Without
+                it a stale category (say "Nodes") carries over to a sheet that
+                has no such group and renders an empty table. */}
+            <CheatSheetTable
+              key={active.id}
+              intro={active.intro}
+              rows={active.rows}
+              searchable
+            />
           </div>
         </section>
 
