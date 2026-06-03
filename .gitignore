@@ -29,3 +29,5 @@ pnpm-debug.log*
 
 # Tooling caches
 .eslintcache
+.vercel
+.env*
