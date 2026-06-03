@@ -258,20 +258,52 @@ npx lighthouse http://localhost:3000/nativehub/ \
 
 ## Deployment
 
-`deploy.yml` builds and publishes to GitHub Pages using the official Pages actions with OIDC
-rather than a deploy key. It checks out with `fetch-depth: 0` so the "Last updated" timestamps come
-from real commit dates.
+The same source builds for both hosts. `baseUrl` is resolved at build time in `docusaurus.config.ts`
+— getting it wrong is what breaks every asset and link, so it is derived from the environment
+rather than hard-coded:
+
+| Environment          | Detected by                         | `url`                           | `baseUrl`     |
+| -------------------- | ----------------------------------- | ------------------------------- | ------------- |
+| Vercel production    | `VERCEL=1`, `VERCEL_ENV=production` | `VERCEL_PROJECT_PRODUCTION_URL` | `/`           |
+| Vercel preview       | `VERCEL=1`                          | `VERCEL_URL` (this deployment)  | `/`           |
+| GitHub Pages / local | neither set                         | `mdryaan.github.io`             | `/nativehub/` |
+
+Preview deployments use their own deployment URL for canonical tags and the sitemap, so a preview
+never claims to be the production site.
+
+### Vercel (recommended)
+
+`vercel.json` pins the framework preset, output directory, clean URLs, long-lived immutable caching
+for fingerprinted assets, and baseline security headers. Import the repo at
+[vercel.com/new](https://vercel.com/new) — every setting is already in the file, so accept the
+detected defaults and deploy. Pushes to `main` then ship to production and every PR gets a preview
+URL automatically.
+
+To verify a Vercel-shaped build locally before pushing:
+
+```bash
+VERCEL=1 VERCEL_ENV=production VERCEL_PROJECT_PRODUCTION_URL=nativehub.vercel.app npm run build
+VERCEL=1 VERCEL_ENV=production VERCEL_PROJECT_PRODUCTION_URL=nativehub.vercel.app npm run serve
+# served at http://localhost:3000/ — note the root path, not /nativehub/
+```
+
+### GitHub Pages
+
+`deploy.yml` publishes with the official Pages actions using OIDC rather than a deploy key, and
+checks out with `fetch-depth: 0` so "Last updated" timestamps come from real commit dates.
 
 Publishing is **manual by design** — nothing goes live until you ask for it:
 
 1. Enable Pages: **Settings → Pages → Source: GitHub Actions**.
 2. Run the workflow: `gh workflow run deploy.yml`, or use the Actions tab.
 
-The site then lives at `https://mdryaan.github.io/nativehub/`. If you would rather publish on every
-merge, change the workflow's trigger back to `push` on `main`.
+The site then lives at `https://mdryaan.github.io/nativehub/`. Change the workflow's trigger to
+`push` on `main` if you want every merge to publish.
 
-To host it elsewhere, update `url`, `baseUrl`, `organizationName`, and `projectName` in
-`docusaurus.config.ts`, then serve the contents of `build/` from any static host.
+### Anywhere else
+
+Set `url` and `baseUrl` in `resolveSite()` in `docusaurus.config.ts`, run `npm run build`, and serve
+the contents of `build/` from any static host.
 
 ---
 

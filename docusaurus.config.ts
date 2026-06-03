@@ -95,6 +95,42 @@ const organizationName = 'mdryaan';
 const projectName = 'nativehub';
 const editUrlBase = `https://github.com/${organizationName}/${projectName}/tree/main/`;
 
+/**
+ * Where this build will be served from.
+ *
+ * GitHub Pages serves the site under a project subpath (`/nativehub/`), while
+ * Vercel serves it from the domain root. Getting `baseUrl` wrong breaks every
+ * asset and link, so it is derived from the build environment rather than
+ * hard-coded:
+ *
+ * - Vercel sets `VERCEL=1` on every build, plus `VERCEL_ENV`,
+ *   `VERCEL_PROJECT_PRODUCTION_URL` (the stable production domain) and
+ *   `VERCEL_URL` (this specific deployment, used for preview builds so canonical
+ *   tags and the sitemap point at the deployment you are actually looking at).
+ * - Anything else — local dev and the GitHub Pages workflow — keeps the
+ *   project-subpath layout.
+ */
+function resolveSite(): { url: string; baseUrl: string } {
+  if (process.env.VERCEL) {
+    const host =
+      process.env.VERCEL_ENV === 'production'
+        ? process.env.VERCEL_PROJECT_PRODUCTION_URL
+        : process.env.VERCEL_URL;
+
+    return {
+      url: host ? `https://${host}` : `https://${projectName}.vercel.app`,
+      baseUrl: '/',
+    };
+  }
+
+  return {
+    url: `https://${organizationName}.github.io`,
+    baseUrl: `/${projectName}/`,
+  };
+}
+
+const site = resolveSite();
+
 const config: Config = {
   title: 'NativeHub',
   tagline: 'Practical guides and resources for cloud native development',
@@ -105,8 +141,8 @@ const config: Config = {
     faster: true,
   },
 
-  url: `https://${organizationName}.github.io`,
-  baseUrl: `/${projectName}/`,
+  url: site.url,
+  baseUrl: site.baseUrl,
 
   organizationName,
   projectName,
@@ -309,7 +345,7 @@ const config: Config = {
               label: 'Contributing',
               href: `https://github.com/${organizationName}/${projectName}/blob/main/CONTRIBUTING.md`,
             },
-            { label: 'RSS', href: '/nativehub/blog/rss.xml' },
+            { label: 'RSS', href: `${site.baseUrl}blog/rss.xml` },
             { label: 'CNCF Landscape', href: 'https://landscape.cncf.io/' },
           ],
         },

@@ -1,0 +1,9 @@
+# Build artifacts — Vercel builds from source
+build
+.docusaurus
+node_modules
+
+# Not needed in a deployment
+.github
+*.md
+!README.md
