@@ -13,6 +13,16 @@ export interface ThemeToggleProps {
 
 const OPTIONS = [
   {
+    value: null,
+    label: 'System',
+    icon: (
+      <>
+        <rect x="2" y="4" width="20" height="13" rx="2" />
+        <path d="M8 21h8M12 17v4" />
+      </>
+    ),
+  },
+  {
     value: 'light' as const,
     label: 'Light',
     icon: (
@@ -30,15 +40,21 @@ const OPTIONS = [
 ];
 
 /**
- * A segmented light/dark control for use outside the navbar.
+ * A segmented System / Light / Dark control for use outside the navbar.
+ *
+ * "System" maps to `setColorMode(null)`, which clears the stored preference so
+ * the site follows `prefers-color-scheme` again. Without it, picking a theme
+ * once would leave no way back to following the OS short of clearing site data.
  *
  * Persistence is handled by Docusaurus' own colour-mode provider, which writes
- * the choice to `localStorage` under the `theme` key and replays it before
- * first paint — so the selection survives reloads and new sessions.
+ * the choice to `localStorage` and replays it before first paint — so the
+ * selection survives reloads and new sessions.
  */
 export default function ThemeToggle({ showLabel, className }: ThemeToggleProps): ReactNode {
   const isBrowser = useIsBrowser();
-  const { colorMode, setColorMode } = useColorMode();
+  // `colorModeChoice` is the *explicit* choice (null when following the OS),
+  // as opposed to `colorMode`, which is the effective light/dark value.
+  const { colorModeChoice, setColorMode } = useColorMode();
 
   return (
     <div className={clsx('nh-theme-toggle', className)}>
@@ -47,13 +63,17 @@ export default function ThemeToggle({ showLabel, className }: ThemeToggleProps):
         {OPTIONS.map((option) => {
           // Before hydration the real mode is unknown, so nothing is marked
           // active — this avoids a flash of the wrong selected state.
-          const active = isBrowser && colorMode === option.value;
+          const active = isBrowser && colorModeChoice === option.value;
           return (
             <button
-              key={option.value}
+              key={option.label}
               type="button"
               aria-pressed={active}
-              title={`Switch to ${option.label.toLowerCase()} theme`}
+              title={
+                option.value === null
+                  ? 'Follow your system theme'
+                  : `Switch to ${option.label.toLowerCase()} theme`
+              }
               className={clsx(
                 'nh-theme-toggle__button',
                 active && 'nh-theme-toggle__button--active',
