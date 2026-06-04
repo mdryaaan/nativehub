@@ -98,35 +98,39 @@ const editUrlBase = `https://github.com/${organizationName}/${projectName}/tree/
 /**
  * Where this build will be served from.
  *
- * GitHub Pages serves the site under a project subpath (`/nativehub/`), while
- * Vercel serves it from the domain root. Getting `baseUrl` wrong breaks every
- * asset and link, so it is derived from the build environment rather than
- * hard-coded:
+ * Vercel serves the site from the domain root; GitHub Pages serves it under a
+ * project subpath. Getting `baseUrl` wrong breaks every asset and link, so it is
+ * derived from the build environment rather than hard-coded:
  *
+ * - `GITHUB_PAGES=true` (set only by `.github/workflows/deploy.yml`) opts into
+ *   the `/nativehub/` subpath layout.
  * - Vercel sets `VERCEL=1` on every build, plus `VERCEL_ENV`,
  *   `VERCEL_PROJECT_PRODUCTION_URL` (the stable production domain) and
  *   `VERCEL_URL` (this specific deployment, used for preview builds so canonical
  *   tags and the sitemap point at the deployment you are actually looking at).
- * - Anything else — local dev and the GitHub Pages workflow — keeps the
- *   project-subpath layout.
+ * - Everything else — local dev included — matches production and serves from
+ *   `/`, so `npm run start` behaves exactly like the deployed site.
  */
+const productionUrl = 'https://nativehub-chi.vercel.app';
+
 function resolveSite(): { url: string; baseUrl: string } {
+  if (process.env.GITHUB_PAGES) {
+    return {
+      url: `https://${organizationName}.github.io`,
+      baseUrl: `/${projectName}/`,
+    };
+  }
+
   if (process.env.VERCEL) {
     const host =
       process.env.VERCEL_ENV === 'production'
         ? process.env.VERCEL_PROJECT_PRODUCTION_URL
         : process.env.VERCEL_URL;
 
-    return {
-      url: host ? `https://${host}` : `https://${projectName}.vercel.app`,
-      baseUrl: '/',
-    };
+    return { url: host ? `https://${host}` : productionUrl, baseUrl: '/' };
   }
 
-  return {
-    url: `https://${organizationName}.github.io`,
-    baseUrl: `/${projectName}/`,
-  };
+  return { url: productionUrl, baseUrl: '/' };
 }
 
 const site = resolveSite();

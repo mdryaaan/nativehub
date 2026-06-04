@@ -38,7 +38,11 @@ jobs:
         run: npm ci
 
       - name: Build
+        # Opt into the GitHub Pages project-subpath layout (/nativehub/).
+        # Every other build — Vercel and local — serves from the domain root.
         run: npm run build
+        env:
+          GITHUB_PAGES: 'true'
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
