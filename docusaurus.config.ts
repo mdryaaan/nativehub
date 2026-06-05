@@ -96,44 +96,30 @@ const projectName = 'nativehub';
 const editUrlBase = `https://github.com/${organizationName}/${projectName}/tree/main/`;
 
 /**
- * Where this build will be served from.
+ * The canonical URL for this build.
  *
- * Vercel serves the site from the domain root; GitHub Pages serves it under a
- * project subpath. Getting `baseUrl` wrong breaks every asset and link, so it is
- * derived from the build environment rather than hard-coded:
+ * Vercel sets `VERCEL=1` on every build, plus `VERCEL_ENV` and either
+ * `VERCEL_PROJECT_PRODUCTION_URL` (the stable production domain) or
+ * `VERCEL_URL` (this specific deployment). Preview builds use the latter so
+ * canonical tags and the sitemap point at the deployment you are actually
+ * looking at, rather than claiming to be production.
  *
- * - `GITHUB_PAGES=true` (set only by `.github/workflows/deploy.yml`) opts into
- *   the `/nativehub/` subpath layout.
- * - Vercel sets `VERCEL=1` on every build, plus `VERCEL_ENV`,
- *   `VERCEL_PROJECT_PRODUCTION_URL` (the stable production domain) and
- *   `VERCEL_URL` (this specific deployment, used for preview builds so canonical
- *   tags and the sitemap point at the deployment you are actually looking at).
- * - Everything else — local dev included — matches production and serves from
- *   `/`, so `npm run start` behaves exactly like the deployed site.
+ * `baseUrl` is always `/` — local dev, previews, and production are identical.
  */
 const productionUrl = 'https://nativehub-chi.vercel.app';
 
-function resolveSite(): { url: string; baseUrl: string } {
-  if (process.env.GITHUB_PAGES) {
-    return {
-      url: `https://${organizationName}.github.io`,
-      baseUrl: `/${projectName}/`,
-    };
+function resolveSiteUrl(): string {
+  if (!process.env.VERCEL) {
+    return productionUrl;
   }
 
-  if (process.env.VERCEL) {
-    const host =
-      process.env.VERCEL_ENV === 'production'
-        ? process.env.VERCEL_PROJECT_PRODUCTION_URL
-        : process.env.VERCEL_URL;
+  const host =
+    process.env.VERCEL_ENV === 'production'
+      ? process.env.VERCEL_PROJECT_PRODUCTION_URL
+      : process.env.VERCEL_URL;
 
-    return { url: host ? `https://${host}` : productionUrl, baseUrl: '/' };
-  }
-
-  return { url: productionUrl, baseUrl: '/' };
+  return host ? `https://${host}` : productionUrl;
 }
-
-const site = resolveSite();
 
 const config: Config = {
   title: 'NativeHub',
@@ -145,13 +131,12 @@ const config: Config = {
     faster: true,
   },
 
-  url: site.url,
-  baseUrl: site.baseUrl,
+  url: resolveSiteUrl(),
+  baseUrl: '/',
 
   organizationName,
   projectName,
   trailingSlash: false,
-  deploymentBranch: 'gh-pages',
 
   onBrokenLinks: 'throw',
   onBrokenAnchors: 'throw',
@@ -349,7 +334,7 @@ const config: Config = {
               label: 'Contributing',
               href: `https://github.com/${organizationName}/${projectName}/blob/main/CONTRIBUTING.md`,
             },
-            { label: 'RSS', href: `${site.baseUrl}blog/rss.xml` },
+            { label: 'RSS', href: '/blog/rss.xml' },
             { label: 'CNCF Landscape', href: 'https://landscape.cncf.io/' },
           ],
         },
