@@ -91,7 +91,7 @@ async function latestPostsPlugin(context: LoadContext): Promise<Plugin> {
   };
 }
 
-const organizationName = 'mdryaan';
+const organizationName = 'mdryaaan';
 const projectName = 'nativehub';
 const editUrlBase = `https://github.com/${organizationName}/${projectName}/tree/main/`;
 

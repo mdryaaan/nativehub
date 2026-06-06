@@ -17,7 +17,7 @@ is only useful if it is right, and being wrong in public is only useful if it ge
 **Requirements:** Node.js 20 or newer (22 is what CI uses) and npm 10+.
 
 ```bash
-git clone https://github.com/mdryaan/nativehub.git
+git clone https://github.com/mdryaaan/nativehub.git
 cd nativehub
 npm install
 npm run start
@@ -121,7 +121,7 @@ there is nothing to maintain by hand.
    ---
    slug: kubernetes-jobs-in-practice
    title: Kubernetes Jobs in practice
-   authors: [mdryaan]
+   authors: [mdryaaan]
    tags: [kubernetes, fundamentals]
    date: 2026-08-01
    description: One or two sentences. Used for the meta description and the homepage card.

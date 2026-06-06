@@ -75,7 +75,7 @@ export default function NotFound(): ReactNode {
 
               <p className={styles.report}>
                 Think this link should work?{' '}
-                <Link to="https://github.com/mdryaan/nativehub/issues/new">Open an issue</Link>{' '}
+                <Link to="https://github.com/mdryaaan/nativehub/issues/new">Open an issue</Link>{' '}
                 and it will get fixed.
               </p>
             </div>
