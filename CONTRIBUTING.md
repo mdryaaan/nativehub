@@ -45,7 +45,7 @@ PR. That is exactly what CI runs.
 
 ```
 nativehub/
-├── .github/workflows/     ci.yml, links.yml, deploy.yml
+├── .github/workflows/     ci.yml, links.yml
 ├── docs/
 │   ├── learn/             concept pages  → /docs/learn/*
 │   └── guides/            task pages     → /docs/guides/*
