@@ -305,7 +305,7 @@ function Newsletter(): ReactNode {
             </a>
             <Link
               className="button button--secondary button--lg"
-              to="https://github.com/mdryaan/nativehub"
+              to="https://github.com/mdryaaan/nativehub"
             >
               Star on GitHub
             </Link>

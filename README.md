@@ -10,8 +10,8 @@ A production-quality documentation and learning hub for Kubernetes, containers, 
 that runs them. Concepts explained properly, guides you can follow end to end, and commands that
 actually work.
 
-[![CI](https://github.com/mdryaan/nativehub/actions/workflows/ci.yml/badge.svg)](https://github.com/mdryaan/nativehub/actions/workflows/ci.yml)
-[![Link check](https://github.com/mdryaan/nativehub/actions/workflows/links.yml/badge.svg)](https://github.com/mdryaan/nativehub/actions/workflows/links.yml)
+[![CI](https://github.com/mdryaaan/nativehub/actions/workflows/ci.yml/badge.svg)](https://github.com/mdryaaan/nativehub/actions/workflows/ci.yml)
+[![Link check](https://github.com/mdryaaan/nativehub/actions/workflows/links.yml/badge.svg)](https://github.com/mdryaaan/nativehub/actions/workflows/links.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0e8f80.svg)](./LICENSE)
 [![Docusaurus](https://img.shields.io/badge/Docusaurus-3.10-0e8f80.svg?logo=docusaurus&logoColor=white)](https://docusaurus.io/)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-0e8f80.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -118,7 +118,7 @@ other edits.
 **Requirements:** Node.js 20+ (CI uses 22) and npm 10+.
 
 ```bash
-git clone https://github.com/mdryaan/nativehub.git
+git clone https://github.com/mdryaaan/nativehub.git
 cd nativehub
 
 npm install

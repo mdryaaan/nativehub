@@ -101,7 +101,7 @@ export default function About(): ReactNode {
                 </li>
                 <li>
                   <strong>Want to add a page?</strong>{' '}
-                  <Link to="https://github.com/mdryaan/nativehub/blob/main/CONTRIBUTING.md">
+                  <Link to="https://github.com/mdryaaan/nativehub/blob/main/CONTRIBUTING.md">
                     CONTRIBUTING.md
                   </Link>{' '}
                   covers the local setup, file conventions, and the PR checklist.
@@ -141,7 +141,7 @@ export default function About(): ReactNode {
               </p>
               <Link
                 className="button button--primary button--block"
-                to="https://github.com/mdryaan"
+                to="https://github.com/mdryaaan"
               >
                 GitHub profile
               </Link>
